@@ -30,7 +30,7 @@ jobs:
         with:
           repository: GiridharSalana/Blogger-Automation
           path: ./Blogger-Automation
-          token: ${{ secrets.BLOGGER_BOT_GITHUB_TOKEN }}
+          token: ${{ secrets.BLOGGER_BOT_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
       - name: Set Up Python
@@ -44,11 +44,13 @@ jobs:
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
       - name: Remove Telegram webhook
+        if: ${{ secrets.TELEGRAM_BOT_TOKEN != '' }}
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/deleteWebhook"
 
       - name: Send Start Message to Telegram
+        if: ${{ secrets.TELEGRAM_BOT_TOKEN != '' }}
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -102,6 +104,7 @@ jobs:
           fi
 
       - name: Send Completion Message to Telegram
+        if: ${{ secrets.TELEGRAM_BOT_TOKEN != '' }}
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -121,11 +124,13 @@ jobs:
           git commit -m "Automated update from Blogger Automation (via Public_Workflows)" || echo "No changes to commit"
 
       - name: Push changes to Blogger-Automation
+        if: ${{ secrets.BLOGGER_BOT_GITHUB_TOKEN != '' }}
         working-directory: ./Blogger-Automation
         run: |
-          git push https://${{ secrets.BLOGGER_BOT_GITHUB_TOKEN }}@github.com/GiridharSalana/Blogger-Automation.git HEAD:main || echo "No changes to push"
+          git push https://${{ secrets.BLOGGER_BOT_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}@github.com/GiridharSalana/Blogger-Automation.git HEAD:main || echo "No changes to push"
           
       - name: Upload log to GitHub Gist
+        if: ${{ secrets.BLOGGER_BOT_GITHUB_TOKEN != '' }}
         id: upload
         working-directory: ./Blogger-Automation
         env:
@@ -152,6 +157,7 @@ jobs:
           echo "url=$RAW_URL" >> "$GITHUB_OUTPUT"
 
       - name: Send to Telegram
+        if: ${{ secrets.TELEGRAM_BOT_TOKEN != '' }}
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -163,6 +169,7 @@ jobs:
             -d parse_mode="Markdown"
 
       - name: Setup Telegram webhook (Polling to Webhook)
+        if: ${{ secrets.TELEGRAM_BOT_TOKEN != '' }}
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" -d "url=https://blogger-bot.giridharsalana-3e5.workers.dev"
