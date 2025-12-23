@@ -4,12 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       news_duration:
-        description: 'Video duration in seconds'
+        description: 'Video duration in seconds (default: 120)'
         required: false
         type: string
         default: '120'
       news_style:
-        description: 'Script style'
+        description: 'Script style (professional/casual/dramatic)'
         required: false
         type: choice
         options:
@@ -18,7 +18,7 @@ on:
           - dramatic
         default: 'professional'
       news_categories:
-        description: 'News categories (space-separated)'
+        description: 'News categories (space-separated, e.g., "world technology")'
         required: false
         type: string
         default: 'world technology'
@@ -42,7 +42,9 @@ on:
           - private
         default: 'public'
   schedule:
-    - cron: '0 6 * * *'
+    - cron: '0 6 * * *'   # 11:30 AM IST (6:00 UTC)
+  repository_dispatch:
+    types: [youtube-automation]
 
 permissions:
   contents: write
@@ -56,7 +58,7 @@ jobs:
         with:
           repository: GiridharSalana/Youtube-Automation
           path: ./Youtube-Automation
-          token: ${{ secrets.YOUTUBE_BOT_GITHUB_TOKEN || secrets.BLOGGER_BOT_GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN_PAT }}
           fetch-depth: 0
 
       - name: Set Up Python
@@ -80,23 +82,28 @@ jobs:
           mkdir -p creds
           if [ -n "$YOUTUBE_CREDENTIALS_JSON" ]; then
             echo "$YOUTUBE_CREDENTIALS_JSON" | base64 -d > creds/youtube_credentials.json
-            echo "✅ YouTube credentials configured"
+            echo "✅ YouTube credentials file created"
+          else
+            echo "⚠️ YOUTUBE_CREDENTIALS_JSON secret not found"
           fi
           if [ -n "$YOUTUBE_TOKEN_PICKLE" ]; then
             echo "$YOUTUBE_TOKEN_PICKLE" | base64 -d > creds/youtube_token.pickle
-            echo "✅ YouTube token configured"
+            echo "✅ YouTube token file created"
+          else
+            echo "⚠️ YOUTUBE_TOKEN_PICKLE secret not found"
           fi
 
       - name: Send Start Message to Telegram
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.YOUTUBE_TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.YOUTUBE_TELEGRAM_CHAT_ID }}
         run: |
           if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
-            MESSAGE="🎬 YouTube Automation started!"
+            MESSAGE="🚀 The YouTube Automation script has started!"
             curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
               -d chat_id="${TELEGRAM_CHAT_ID}" \
-              -d text="$MESSAGE"
+              -d text="$MESSAGE" \
+              -d parse_mode="Markdown"
           fi
 
       - name: Run YouTube Automation
@@ -106,53 +113,55 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
           CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
-          NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
-          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
-          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
-          LLM_PROVIDER: ${{ vars.LLM_PROVIDER || 'cohere' }}
+          NEWSAPI_KEY: ${{ secrets.YOUTUBE_NEWSAPI_KEY }}
+          PEXELS_API_KEY: ${{ secrets.YOUTUBE_PEXELS_API_KEY }}
+          PIXABAY_API_KEY: ${{ secrets.YOUTUBE_PIXABAY_API_KEY }}
+          LLM_PROVIDER: ${{ vars.YOUTUBE_LLM_PROVIDER || 'cohere' }}
           PYTHONUNBUFFERED: 1
         run: |
           CMD="uv run python main.py"
-          CMD="$CMD --news-duration ${{ inputs.news_duration || '120' }}"
-          CMD="$CMD --news-style ${{ inputs.news_style || 'professional' }}"
-          CMD="$CMD --news-categories ${{ inputs.news_categories || 'world technology' }}"
-          
-          if [ "${{ inputs.upload_youtube }}" != "false" ]; then
-            CMD="$CMD --upload-youtube --youtube-privacy ${{ inputs.youtube_privacy || 'public' }}"
+          CMD="$CMD --news-duration ${{ github.event.inputs.news_duration || '120' }}"
+          CMD="$CMD --news-style ${{ github.event.inputs.news_style || 'professional' }}"
+          CMD="$CMD --news-categories ${{ github.event.inputs.news_categories || 'world technology' }}"
+
+          if [ "${{ github.event.inputs.upload_youtube }}" == "true" ] || [ -z "${{ github.event.inputs.upload_youtube }}" ]; then
+            CMD="$CMD --upload-youtube --youtube-privacy ${{ github.event.inputs.youtube_privacy || 'public' }}"
           else
             CMD="$CMD --no-upload-youtube"
           fi
-          
-          if [ "${{ inputs.generate_shorts }}" != "false" ]; then
+
+          if [ "${{ github.event.inputs.generate_shorts }}" == "true" ] || [ -z "${{ github.event.inputs.generate_shorts }}" ]; then
             CMD="$CMD --long-and-shorts"
           else
             CMD="$CMD --no-shorts"
           fi
-          
+
           echo "🚀 Running: $CMD"
           eval "$CMD" 2>&1 | tee logfile.log
 
       - name: Send Completion Message to Telegram
         if: always()
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.YOUTUBE_TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.YOUTUBE_TELEGRAM_CHAT_ID }}
         run: |
           if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
             if [ "${{ job.status }}" = "success" ]; then
-              MESSAGE="✅ YouTube Automation completed!"
+              MESSAGE="🎉 The YouTube Automation script has completed!"
             else
               MESSAGE="❌ YouTube Automation failed!"
             fi
             curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
               -d chat_id="${TELEGRAM_CHAT_ID}" \
-              -d text="$MESSAGE"
+              -d text="$MESSAGE" \
+              -d parse_mode="Markdown"
           fi
 
       - name: Update YouTube Token
         working-directory: ./Youtube-Automation
+        if: success()
         env:
-          GH_TOKEN: ${{ secrets.YOUTUBE_BOT_GITHUB_TOKEN || secrets.BLOGGER_BOT_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN_PAT }}
         run: |
           if [ -f creds/youtube_token.pickle ] && [ -n "$GH_TOKEN" ]; then
             NEW_TOKEN=$(base64 -w 0 creds/youtube_token.pickle)
@@ -165,13 +174,13 @@ jobs:
         run: |
           git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add assets/content_db/*.db main.json config.json 2>/dev/null || true
+          git add .
           git commit -m "Automated update from YouTube Automation" || echo "No changes to commit"
 
       - name: Push changes to Youtube-Automation
         working-directory: ./Youtube-Automation
         env:
-          GH_TOKEN: ${{ secrets.YOUTUBE_BOT_GITHUB_TOKEN || secrets.BLOGGER_BOT_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN_PAT }}
         run: |
           if [ -n "$GH_TOKEN" ]; then
             git push https://${GH_TOKEN}@github.com/GiridharSalana/Youtube-Automation.git HEAD:main || echo "No changes to push"
@@ -182,7 +191,7 @@ jobs:
         id: upload
         working-directory: ./Youtube-Automation
         env:
-          GH_TOKEN: ${{ secrets.YOUTUBE_BOT_GITHUB_TOKEN || secrets.BLOGGER_BOT_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN_PAT }}
         run: |
           if [ -f "logfile.log" ] && [ -n "$GH_TOKEN" ]; then
             OUTPUT=$(gh gist create logfile.log --public -d "YouTube Automation Log $(date +%Y-%m-%d)" 2>&1) || true
@@ -190,21 +199,20 @@ jobs:
             if [ -n "$GIST_URL" ]; then
               echo "url=$GIST_URL" >> "$GITHUB_OUTPUT"
               echo "✅ Log uploaded: $GIST_URL"
-            else
-              echo "⚠️ Gist upload failed, but video generation succeeded"
             fi
           fi
 
       - name: Send Log to Telegram
         if: always()
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.YOUTUBE_TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.YOUTUBE_TELEGRAM_CHAT_ID }}
           LOG_URL: ${{ steps.upload.outputs.url }}
         run: |
           if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$LOG_URL" ]; then
-            MESSAGE="📋 YouTube Automation Log: $LOG_URL"
+            MESSAGE="YouTube Automation Log file: [Logfile]($LOG_URL)"
             curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
               -d chat_id="${TELEGRAM_CHAT_ID}" \
-              -d text="$MESSAGE"
+              -d text="$MESSAGE" \
+              -d parse_mode="Markdown"
           fi

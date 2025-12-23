@@ -1,7 +1,9 @@
 name: Blogger Automation
 
 on:
-  workflow_dispatch:
+  schedule:
+    - cron: '30 11 * * *'   # 5:00 PM IST
+  workflow_dispatch:  # Allows manual triggering
     inputs:
       link:
         description: 'Article URL (for link mode)'
@@ -15,179 +17,149 @@ on:
         description: 'Configuration JSON (optional)'
         required: false
         type: string
-  schedule:
-    - cron: '30 11 * * *'   # 5:00 PM IST
   repository_dispatch:
     types: [blogger-automation]
 
 permissions:
-  contents: write
+  contents: write  # Needed to allow pushing with GITHUB_TOKEN
 
 jobs:
-  run-blogger-automation:
+  build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Blogger-Automation repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           repository: GiridharSalana/Blogger-Automation
-          path: ./Blogger-Automation
-          token: ${{ secrets.BLOGGER_BOT_GITHUB_TOKEN }}
-          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN_PAT }}
+          persist-credentials: false  # Avoid using default GITHUB_TOKEN for pushing
+          fetch-depth: 0  # Ensure full history is available
 
       - name: Set Up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
-      - name: Install UV
+      - name: Install Uv
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
       - name: Remove Telegram webhook
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-        run: |
-          if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
-            curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/deleteWebhook"
-          fi
+          TELEGRAM_BOT_TOKEN: ${{ secrets.BLOGGER_TELEGRAM_BOT_TOKEN }}
+        run:  curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/deleteWebhook"
 
       - name: Send Start Message to Telegram
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.BLOGGER_TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.BLOGGER_TELEGRAM_CHAT_ID }}
         run: |
-          if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
-            MESSAGE="🚀 Blogger Automation started from Public-Workflows!"
+            MESSAGE="🚀 The Blogger Automation script has started!"
             curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
               -d chat_id="${TELEGRAM_CHAT_ID}" \
-              -d text="$MESSAGE"
-          fi
+              -d text="$MESSAGE" \
+              -d parse_mode="Markdown"
 
       - name: Parse Config JSON
         id: parse_config
         run: |
-          # Handle both workflow_dispatch and repository_dispatch inputs
-          if [ -n '${{ github.event.inputs.config }}' ]; then
-            CONFIG='${{ github.event.inputs.config }}'
-          elif [ -n '${{ github.event.client_payload.config }}' ]; then
-            CONFIG='${{ github.event.client_payload.config }}'
-          else
-            CONFIG=""
-          fi
+          CONFIG='${{ github.event.inputs.config }}'
           if [ -n "$CONFIG" ]; then
             echo "Parsing config JSON..."
             echo "$CONFIG" | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> $GITHUB_ENV
           fi
 
-      - name: Run Blogger Automation
-        working-directory: ./Blogger-Automation
+      - name: Run Application
         env:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
           CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
-          BLOG_ID: ${{ secrets.BLOG_ID }}
-          LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
-          IMGBB_CLIENT_ID: ${{ env.IMGBB_CLIENT_ID || secrets.IMGBB_CLIENT_ID }}
-          MAX_BLOGS_POSTS: ${{ env.MAX_BLOGS_POSTS || vars.MAX_BLOGS_POSTS || '1' }}
-          BLOG_UPLOAD: ${{ env.BLOG_UPLOAD || vars.BLOG_UPLOAD || 'true' }}
-          USER_APPROVAL: ${{ env.USER_APPROVAL || vars.USER_APPROVAL || 'false' }}
-          BLOG_GENERATE: ${{ env.BLOG_GENERATE || vars.BLOG_GENERATE || 'true' }}
-          IMAGE_UPLOAD: ${{ env.IMAGE_UPLOAD || vars.IMAGE_UPLOAD || 'true' }}
-          SCHEDULE_INTERVAL: ${{ env.SCHEDULE_INTERVAL || vars.SCHEDULE_INTERVAL }}
-          LINKEDIN_UPLOAD: ${{ env.LINKEDIN_UPLOAD || vars.LINKEDIN_UPLOAD || 'false' }}
-          LLM_PROVIDER: ${{ env.LLM_PROVIDER || vars.LLM_PROVIDER || 'cohere' }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          BLOGGER_BOT_GITHUB_TOKEN: ${{ secrets.BLOGGER_BOT_GITHUB_TOKEN }}
+          BLOG_ID: ${{ secrets.BLOGGER_BLOG_ID }}
+          LINKEDIN_ACCESS_TOKEN: ${{ secrets.BLOGGER_LINKEDIN_ACCESS_TOKEN }}
+          IMGBB_CLIENT_ID: ${{ env.IMGBB_CLIENT_ID || secrets.BLOGGER_IMGBB_CLIENT_ID }}
+          MAX_BLOGS_POSTS: ${{ env.MAX_BLOGS_POSTS || vars.BLOGGER_MAX_BLOGS_POSTS }}
+          BLOG_UPLOAD: ${{ env.BLOG_UPLOAD || vars.BLOGGER_BLOG_UPLOAD }}
+          USER_APPROVAL: ${{ env.USER_APPROVAL || vars.BLOGGER_USER_APPROVAL }}
+          BLOG_GENERATE: ${{ env.BLOG_GENERATE || vars.BLOGGER_BLOG_GENERATE }}
+          IMAGE_UPLOAD: ${{ env.IMAGE_UPLOAD || vars.BLOGGER_IMAGE_UPLOAD }}
+          SCHEDULE_INTERVAL: ${{ env.SCHEDULE_INTERVAL || vars.BLOGGER_SCHEDULE_INTERVAL }}
+          LINKEDIN_UPLOAD: ${{ env.LINKEDIN_UPLOAD || vars.BLOGGER_LINKEDIN_UPLOAD }}
+          LLM_PROVIDER: ${{ env.LLM_PROVIDER || vars.BLOGGER_LLM_PROVIDER }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.BLOGGER_TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.BLOGGER_TELEGRAM_CHAT_ID }}
+          BLOGGER_BOT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN_PAT }}
           PYTHONUNBUFFERED: 1
         run: |
-          # Get inputs from workflow_dispatch or repository_dispatch
-          LINK="${{ github.event.inputs.link || github.event.client_payload.link }}"
-          TEXT="${{ github.event.inputs.text || github.event.client_payload.text }}"
-          
-          if [ -n "$LINK" ]; then
+          if [ -n "${{ github.event.inputs.link }}" ]; then
             echo "🔗 Running in Link Mode"
-            uv run python main.py --link "$LINK" 2>&1 | tee logfile.log
-          elif [ -n "$TEXT" ]; then
+            uv run python main.py --link "${{ github.event.inputs.link }}" | tee logfile.log
+          elif [ -n "${{ github.event.inputs.text }}" ]; then
             echo "✍️ Running in Text Mode"
-            uv run python main.py --text "$TEXT" 2>&1 | tee logfile.log
+            uv run python main.py --text "${{ github.event.inputs.text }}" | tee logfile.log
           else
             echo "🔄 Running in Auto Mode"
-            uv run python main.py 2>&1 | tee logfile.log
+            uv run python main.py | tee logfile.log
           fi
 
       - name: Send Completion Message to Telegram
-        if: always()
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.BLOGGER_TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.BLOGGER_TELEGRAM_CHAT_ID }}
         run: |
-          if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
-            if [ "${{ job.status }}" = "success" ]; then
-              MESSAGE="✅ Blogger Automation completed!"
-            else
-              MESSAGE="❌ Blogger Automation failed!"
-            fi
+            MESSAGE="🎉 The Blogger Automation script has completed!"
             curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
               -d chat_id="${TELEGRAM_CHAT_ID}" \
-              -d text="$MESSAGE"
-          fi
+              -d text="$MESSAGE" \
+              -d parse_mode="Markdown"
 
-      - name: Commit files to Blogger-Automation
-        working-directory: ./Blogger-Automation
+      - name: Commit files
         run: |
           git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add .
-          git commit -m "Automated update from Blogger Automation (via Public-Workflows)" || echo "No changes to commit"
+          git commit -m "Automated update from Blogger Automation" || echo "No changes to commit"
 
-      - name: Push changes to Blogger-Automation
-        working-directory: ./Blogger-Automation
-        env:
-          GH_TOKEN: ${{ secrets.BLOGGER_BOT_GITHUB_TOKEN }}
+      - name: Push changes
         run: |
-          if [ -n "$GH_TOKEN" ]; then
-            git push https://${GH_TOKEN}@github.com/GiridharSalana/Blogger-Automation.git HEAD:master || echo "No changes to push"
-          fi
-
+          git push https://${{ secrets.GITHUB_TOKEN_PAT }}@github.com/GiridharSalana/Blogger-Automation.git HEAD:master || echo "No changes to push"
+          
       - name: Upload log to GitHub Gist
-        if: always()
         id: upload
-        working-directory: ./Blogger-Automation
         env:
-          GH_TOKEN: ${{ secrets.BLOGGER_BOT_GITHUB_TOKEN }}
+          BLOGGER_BOT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN_PAT }}
         run: |
-          if [ -f "logfile.log" ] && [ -n "$GH_TOKEN" ]; then
-            OUTPUT=$(gh gist create logfile.log --public -d "Blogger Automation Log $(date +%Y-%m-%d)" 2>&1) || true
-            GIST_URL=$(echo "$OUTPUT" | grep -o 'https://gist.github.com/[^ ]*' | head -1)
-            if [ -n "$GIST_URL" ]; then
-              echo "url=$GIST_URL" >> "$GITHUB_OUTPUT"
-              echo "✅ Log uploaded: $GIST_URL"
-            fi
-          fi
+          FILE="logfile.log"
+          CONTENT=$(jq -Rs . < "$FILE")
+      
+          RESPONSE=$(curl -s -X POST https://api.github.com/gists \
+            -H "Authorization: token $BLOGGER_BOT_GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            -d "{
+              \"description\": \"AutoBlogger Logfile upload\",
+              \"public\": true,
+              \"files\": {
+                \"${FILE}\": {
+                  \"content\": $CONTENT
+                }
+              }
+            }")
+      
+          RAW_URL=$(echo "$RESPONSE" | jq -r ".files.\"$FILE\".raw_url")
+      
+          echo "url=$RAW_URL" >> "$GITHUB_OUTPUT"
 
-      - name: Send Log to Telegram
-        if: always()
+      - name: Send to Telegram
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          LOG_URL: ${{ steps.upload.outputs.url }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.BLOGGER_TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.BLOGGER_TELEGRAM_CHAT_ID }}
         run: |
-          if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$LOG_URL" ]; then
-            MESSAGE="📋 Blogger Log: $LOG_URL"
-            curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-              -d chat_id="${TELEGRAM_CHAT_ID}" \
-              -d text="$MESSAGE"
-          fi
+          MESSAGE="AutoBlogger Log file: [Logfile](${{ steps.upload.outputs.url }})"
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            -d text="$MESSAGE" \
+            -d parse_mode="Markdown"
 
-      - name: Setup Telegram webhook
+      - name: Setup Telegram webhook (Polling to Webhook)
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-        run: |
-          if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
-            curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" \
-              -d "url=https://blogger-bot.giridharsalana-3e5.workers.dev"
-          fi
-
+          TELEGRAM_BOT_TOKEN: ${{ secrets.BLOGGER_TELEGRAM_BOT_TOKEN }}
+        run:  curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" -d "url=https://blogger-bot.giridharsalana-3e5.workers.dev"
