@@ -160,8 +160,9 @@ jobs:
           GH_TOKEN: ${{ secrets.BLOGGER_BOT_GITHUB_TOKEN }}
         run: |
           if [ -f "logfile.log" ] && [ -n "$GH_TOKEN" ]; then
-            GIST_URL=$(gh gist create logfile.log --public -d "Blogger Automation Log $(date +%Y-%m-%d)" 2>&1) || true
-            if [[ "$GIST_URL" == *"gist.github.com"* ]]; then
+            OUTPUT=$(gh gist create logfile.log --public -d "Blogger Automation Log $(date +%Y-%m-%d)" 2>&1) || true
+            GIST_URL=$(echo "$OUTPUT" | grep -o 'https://gist.github.com/[^ ]*' | head -1)
+            if [ -n "$GIST_URL" ]; then
               echo "url=$GIST_URL" >> "$GITHUB_OUTPUT"
               echo "✅ Log uploaded: $GIST_URL"
             fi
