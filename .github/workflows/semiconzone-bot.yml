@@ -1,0 +1,192 @@
+name: Semiconzone Bot Automation
+
+on:
+  workflow_dispatch:
+    inputs:
+      link:
+        description: 'Article URL (for link mode)'
+        required: false
+        type: string
+      text:
+        description: 'Topic/Prompt (for text mode)'
+        required: false
+        type: string
+      config:
+        description: 'Configuration JSON (optional)'
+        required: false
+        type: string
+  schedule:
+    - cron: '30 12 * * *'   # 6:00 PM IST
+  repository_dispatch:
+    types: [semiconzone-bot]
+
+permissions:
+  contents: write
+
+jobs:
+  run-semiconzone-bot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Semiconzone-Bot repository
+        uses: actions/checkout@v4
+        with:
+          repository: GiridharSalana/Semiconzone-Bot
+          path: ./Semiconzone-Bot
+          token: ${{ secrets.SEMICONZONE_BOT_GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Set Up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install UV
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Remove Telegram webhook
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.SEMICONZONE_TELEGRAM_BOT_TOKEN }}
+        run: |
+          if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
+            curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/deleteWebhook"
+          fi
+
+      - name: Send Start Message to Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.SEMICONZONE_TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.SEMICONZONE_TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
+            MESSAGE="🚀 Semiconzone Bot started from Public-Workflows!"
+            curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+              -d chat_id="${TELEGRAM_CHAT_ID}" \
+              -d text="$MESSAGE"
+          fi
+
+      - name: Parse Config JSON
+        id: parse_config
+        run: |
+          # Handle both workflow_dispatch and repository_dispatch inputs
+          if [ -n '${{ github.event.inputs.config }}' ]; then
+            CONFIG='${{ github.event.inputs.config }}'
+          elif [ -n '${{ github.event.client_payload.config }}' ]; then
+            CONFIG='${{ github.event.client_payload.config }}'
+          else
+            CONFIG=""
+          fi
+          if [ -n "$CONFIG" ]; then
+            echo "Parsing config JSON..."
+            echo "$CONFIG" | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> $GITHUB_ENV
+          fi
+
+      - name: Run Semiconzone Bot
+        working-directory: ./Semiconzone-Bot
+        env:
+          GOOGLE_API_KEY: ${{ secrets.SEMICONZONE_GOOGLE_API_KEY }}
+          COHERE_API_KEY: ${{ secrets.SEMICONZONE_COHERE_API_KEY }}
+          CEREBRAS_API_KEY: ${{ secrets.SEMICONZONE_CEREBRAS_API_KEY }}
+          BLOG_ID: ${{ secrets.SEMICONZONE_BLOG_ID }}
+          LINKEDIN_ACCESS_TOKEN: ${{ secrets.SEMICONZONE_LINKEDIN_ACCESS_TOKEN }}
+          IMGBB_CLIENT_ID: ${{ env.IMGBB_CLIENT_ID || secrets.SEMICONZONE_IMGBB_CLIENT_ID }}
+          MAX_BLOGS_POSTS: ${{ env.MAX_BLOGS_POSTS || vars.SEMICONZONE_MAX_BLOGS_POSTS || '1' }}
+          BLOG_UPLOAD: ${{ env.BLOG_UPLOAD || vars.SEMICONZONE_BLOG_UPLOAD || 'true' }}
+          USER_APPROVAL: ${{ env.USER_APPROVAL || vars.SEMICONZONE_USER_APPROVAL || 'false' }}
+          BLOG_GENERATE: ${{ env.BLOG_GENERATE || vars.SEMICONZONE_BLOG_GENERATE || 'true' }}
+          IMAGE_UPLOAD: ${{ env.IMAGE_UPLOAD || vars.SEMICONZONE_IMAGE_UPLOAD || 'true' }}
+          SCHEDULE_INTERVAL: ${{ env.SCHEDULE_INTERVAL || vars.SEMICONZONE_SCHEDULE_INTERVAL }}
+          LINKEDIN_UPLOAD: ${{ env.LINKEDIN_UPLOAD || vars.SEMICONZONE_LINKEDIN_UPLOAD || 'false' }}
+          LLM_PROVIDER: ${{ env.LLM_PROVIDER || vars.SEMICONZONE_LLM_PROVIDER || 'cohere' }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.SEMICONZONE_TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.SEMICONZONE_TELEGRAM_CHAT_ID }}
+          SEMICONZONE_BOT_GITHUB_TOKEN: ${{ secrets.SEMICONZONE_BOT_GITHUB_TOKEN }}
+          PYTHONUNBUFFERED: 1
+        run: |
+          # Get inputs from workflow_dispatch or repository_dispatch
+          LINK="${{ github.event.inputs.link || github.event.client_payload.link }}"
+          TEXT="${{ github.event.inputs.text || github.event.client_payload.text }}"
+          
+          if [ -n "$LINK" ]; then
+            echo "🔗 Running in Link Mode"
+            uv run python main.py --link "$LINK" 2>&1 | tee logfile.log
+          elif [ -n "$TEXT" ]; then
+            echo "✍️ Running in Text Mode"
+            uv run python main.py --text "$TEXT" 2>&1 | tee logfile.log
+          else
+            echo "🔄 Running in Auto Mode"
+            uv run python main.py 2>&1 | tee logfile.log
+          fi
+
+      - name: Send Completion Message to Telegram
+        if: always()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.SEMICONZONE_TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.SEMICONZONE_TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
+            if [ "${{ job.status }}" = "success" ]; then
+              MESSAGE="✅ Semiconzone Bot completed!"
+            else
+              MESSAGE="❌ Semiconzone Bot failed!"
+            fi
+            curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+              -d chat_id="${TELEGRAM_CHAT_ID}" \
+              -d text="$MESSAGE"
+          fi
+
+      - name: Commit files to Semiconzone-Bot
+        working-directory: ./Semiconzone-Bot
+        run: |
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add .
+          git commit -m "Automated update from Semiconzone Bot (via Public-Workflows)" || echo "No changes to commit"
+
+      - name: Push changes to Semiconzone-Bot
+        working-directory: ./Semiconzone-Bot
+        env:
+          GH_TOKEN: ${{ secrets.SEMICONZONE_BOT_GITHUB_TOKEN }}
+        run: |
+          if [ -n "$GH_TOKEN" ]; then
+            git push https://${GH_TOKEN}@github.com/GiridharSalana/Semiconzone-Bot.git HEAD:main || echo "No changes to push"
+          fi
+
+      - name: Upload log to GitHub Gist
+        if: always()
+        id: upload
+        working-directory: ./Semiconzone-Bot
+        env:
+          GH_TOKEN: ${{ secrets.SEMICONZONE_BOT_GITHUB_TOKEN }}
+        run: |
+          if [ -f "logfile.log" ] && [ -n "$GH_TOKEN" ]; then
+            GIST_URL=$(gh gist create logfile.log --public -d "Semiconzone Bot Log $(date +%Y-%m-%d)" 2>&1) || true
+            if [[ "$GIST_URL" == *"gist.github.com"* ]]; then
+              echo "url=$GIST_URL" >> "$GITHUB_OUTPUT"
+              echo "✅ Log uploaded: $GIST_URL"
+            fi
+          fi
+
+      - name: Send Log to Telegram
+        if: always()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.SEMICONZONE_TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.SEMICONZONE_TELEGRAM_CHAT_ID }}
+          LOG_URL: ${{ steps.upload.outputs.url }}
+        run: |
+          if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$LOG_URL" ]; then
+            MESSAGE="📋 Semiconzone Log: $LOG_URL"
+            curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+              -d chat_id="${TELEGRAM_CHAT_ID}" \
+              -d text="$MESSAGE"
+          fi
+
+      - name: Setup Telegram webhook
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.SEMICONZONE_TELEGRAM_BOT_TOKEN }}
+        run: |
+          if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
+            curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" \
+              -d "url=https://blogger-bot.giridharsalana-3e5.workers.dev"
+          fi
+
