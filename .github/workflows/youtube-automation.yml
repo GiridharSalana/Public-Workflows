@@ -88,23 +88,20 @@ jobs:
             -d text="$MESSAGE" \
             -d parse_mode="Markdown"
 
-      - name: Setup YouTube OAuth Credentials
-        env:
-          YOUTUBE_CREDENTIALS_JSON: ${{ secrets.YOUTUBE_CREDENTIALS_JSON }}
-          YOUTUBE_TOKEN_PICKLE: ${{ secrets.YOUTUBE_TOKEN_PICKLE }}
+      - name: Check YouTube OAuth Credentials
         run: |
-          mkdir -p creds
-          if [ -n "$YOUTUBE_CREDENTIALS_JSON" ]; then
-            echo "$YOUTUBE_CREDENTIALS_JSON" | base64 -d > creds/youtube_credentials.json
-            echo "✅ YouTube credentials file created"
+          # Credentials are committed to the Youtube-Automation repo (like Blogger/Semiconzone)
+          # Just verify they exist after checkout
+          if [ -f "creds/youtube_credentials.json" ]; then
+            echo "✅ YouTube credentials file found"
           else
-            echo "⚠️ YOUTUBE_CREDENTIALS_JSON secret not found"
+            echo "❌ creds/youtube_credentials.json not found!"
+            exit 1
           fi
-          if [ -n "$YOUTUBE_TOKEN_PICKLE" ]; then
-            echo "$YOUTUBE_TOKEN_PICKLE" | base64 -d > creds/youtube_token.pickle
-            echo "✅ YouTube token file created"
+          if [ -f "creds/youtube_token.pickle" ]; then
+            echo "✅ YouTube token file found"
           else
-            echo "⚠️ YOUTUBE_TOKEN_PICKLE secret not found"
+            echo "⚠️ creds/youtube_token.pickle not found - will authenticate via Telegram"
           fi
 
       - name: Run Application
@@ -153,16 +150,6 @@ jobs:
             -d chat_id="${TELEGRAM_CHAT_ID}" \
             -d text="$MESSAGE" \
             -d parse_mode="Markdown"
-
-      - name: Update YouTube Token
-        env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
-        run: |
-          if [ -f creds/youtube_token.pickle ] && [ -n "$GH_TOKEN" ]; then
-            NEW_TOKEN=$(base64 -w 0 creds/youtube_token.pickle)
-            echo "$NEW_TOKEN" | gh secret set YOUTUBE_TOKEN_PICKLE --repo GiridharSalana/Public-Workflows
-            echo "✅ YouTube token updated"
-          fi
 
       - name: Commit files
         run: |
