@@ -1,0 +1,217 @@
+name: Run YouTube Automation
+
+on:
+  workflow_dispatch:
+    inputs:
+      news_duration:
+        description: 'Video duration in seconds'
+        required: false
+        type: string
+        default: '120'
+      news_style:
+        description: 'Script style'
+        required: false
+        type: choice
+        options:
+          - professional
+          - casual
+          - dramatic
+        default: 'professional'
+      news_categories:
+        description: 'News categories (space-separated)'
+        required: false
+        type: string
+        default: 'world technology'
+      upload_youtube:
+        description: 'Upload to YouTube'
+        required: false
+        type: boolean
+        default: true
+      generate_shorts:
+        description: 'Also generate YouTube Shorts'
+        required: false
+        type: boolean
+        default: true
+      youtube_privacy:
+        description: 'YouTube video privacy'
+        required: false
+        type: choice
+        options:
+          - public
+          - unlisted
+          - private
+        default: 'public'
+  schedule:
+    - cron: '0 6 * * *'
+
+permissions:
+  contents: write
+
+jobs:
+  run-youtube-automation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Youtube-Automation repository
+        uses: actions/checkout@v4
+        with:
+          repository: GiridharSalana/Youtube-Automation
+          path: ./Youtube-Automation
+          token: ${{ secrets.YOUTUBE_BOT_GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Set Up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install UV and FFmpeg
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Setup YouTube OAuth Credentials
+        working-directory: ./Youtube-Automation
+        env:
+          YOUTUBE_CREDENTIALS_JSON: ${{ secrets.YOUTUBE_CREDENTIALS_JSON }}
+          YOUTUBE_TOKEN_PICKLE: ${{ secrets.YOUTUBE_TOKEN_PICKLE }}
+        run: |
+          mkdir -p creds
+          if [ -n "$YOUTUBE_CREDENTIALS_JSON" ]; then
+            echo "$YOUTUBE_CREDENTIALS_JSON" | base64 -d > creds/youtube_credentials.json
+            echo "✅ YouTube credentials configured"
+          fi
+          if [ -n "$YOUTUBE_TOKEN_PICKLE" ]; then
+            echo "$YOUTUBE_TOKEN_PICKLE" | base64 -d > creds/youtube_token.pickle
+            echo "✅ YouTube token configured"
+          fi
+
+      - name: Send Start Message to Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
+            MESSAGE="🎬 YouTube Automation started!"
+            curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+              -d chat_id="${TELEGRAM_CHAT_ID}" \
+              -d text="$MESSAGE"
+          fi
+
+      - name: Run YouTube Automation
+        working-directory: ./Youtube-Automation
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
+          CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+          NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
+          PYTHONUNBUFFERED: 1
+        run: |
+          CMD="uv run python main.py"
+          CMD="$CMD --news-duration ${{ inputs.news_duration || '120' }}"
+          CMD="$CMD --news-style ${{ inputs.news_style || 'professional' }}"
+          CMD="$CMD --news-categories ${{ inputs.news_categories || 'world technology' }}"
+          
+          if [ "${{ inputs.upload_youtube }}" != "false" ]; then
+            CMD="$CMD --upload-youtube --youtube-privacy ${{ inputs.youtube_privacy || 'public' }}"
+          else
+            CMD="$CMD --no-upload-youtube"
+          fi
+          
+          if [ "${{ inputs.generate_shorts }}" != "false" ]; then
+            CMD="$CMD --long-and-shorts"
+          else
+            CMD="$CMD --no-shorts"
+          fi
+          
+          echo "🚀 Running: $CMD"
+          eval "$CMD" 2>&1 | tee logfile.log
+
+      - name: Send Completion Message to Telegram
+        if: always()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
+            if [ "${{ job.status }}" = "success" ]; then
+              MESSAGE="✅ YouTube Automation completed!"
+            else
+              MESSAGE="❌ YouTube Automation failed!"
+            fi
+            curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+              -d chat_id="${TELEGRAM_CHAT_ID}" \
+              -d text="$MESSAGE"
+          fi
+
+      - name: Update YouTube Token
+        working-directory: ./Youtube-Automation
+        env:
+          GH_TOKEN: ${{ secrets.YOUTUBE_BOT_GITHUB_TOKEN }}
+        run: |
+          if [ -f creds/youtube_token.pickle ] && [ -n "$GH_TOKEN" ]; then
+            NEW_TOKEN=$(base64 -w 0 creds/youtube_token.pickle)
+            echo "$NEW_TOKEN" | gh secret set YOUTUBE_TOKEN_PICKLE --repo GiridharSalana/Public_Workflows
+            echo "✅ YouTube token updated"
+          fi
+
+      - name: Commit files to Youtube-Automation
+        working-directory: ./Youtube-Automation
+        run: |
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add assets/content_db/*.db main.json config.json 2>/dev/null || true
+          git commit -m "Automated update from YouTube Automation" || echo "No changes to commit"
+
+      - name: Push changes to Youtube-Automation
+        working-directory: ./Youtube-Automation
+        env:
+          GH_TOKEN: ${{ secrets.YOUTUBE_BOT_GITHUB_TOKEN }}
+        run: |
+          if [ -n "$GH_TOKEN" ]; then
+            git push https://${GH_TOKEN}@github.com/GiridharSalana/Youtube-Automation.git HEAD:main || echo "No changes to push"
+          fi
+
+      - name: Upload log to GitHub Gist
+        if: always()
+        id: upload
+        working-directory: ./Youtube-Automation
+        env:
+          YOUTUBE_BOT_GITHUB_TOKEN: ${{ secrets.YOUTUBE_BOT_GITHUB_TOKEN }}
+        run: |
+          if [ -f "logfile.log" ] && [ -n "$YOUTUBE_BOT_GITHUB_TOKEN" ]; then
+            CONTENT=$(jq -Rs . < "logfile.log")
+            RESPONSE=$(curl -s -X POST https://api.github.com/gists \
+              -H "Authorization: token $YOUTUBE_BOT_GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github.v3+json" \
+              -d "{
+                \"description\": \"YouTube Automation Log\",
+                \"public\": true,
+                \"files\": {
+                  \"logfile.log\": {
+                    \"content\": $CONTENT
+                  }
+                }
+              }")
+            RAW_URL=$(echo "$RESPONSE" | jq -r '.files."logfile.log".raw_url')
+            echo "url=$RAW_URL" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Send Log to Telegram
+        if: always()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          LOG_URL: ${{ steps.upload.outputs.url }}
+        run: |
+          if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$LOG_URL" ]; then
+            MESSAGE="📋 YouTube Automation Log: $LOG_URL"
+            curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+              -d chat_id="${TELEGRAM_CHAT_ID}" \
+              -d text="$MESSAGE"
+          fi
