@@ -126,27 +126,16 @@ jobs:
       - name: Upload log to GitHub Gist
         id: upload
         env:
-          SEMICONZONE_BOT_GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          FILE="logfile.log"
-          CONTENT=$(jq -Rs . < "$FILE")
-      
-          RESPONSE=$(curl -s -X POST https://api.github.com/gists \
-            -H "Authorization: token $SEMICONZONE_BOT_GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github.v3+json" \
-            -d "{
-              \"description\": \"Semiconzone Bot Logfile upload\",
-              \"public\": true,
-              \"files\": {
-                \"${FILE}\": {
-                  \"content\": $CONTENT
-                }
-              }
-            }")
-      
-          RAW_URL=$(echo "$RESPONSE" | jq -r ".files.\"$FILE\".raw_url")
-      
-          echo "url=$RAW_URL" >> "$GITHUB_OUTPUT"
+          if [ -f "logfile.log" ] && [ -n "$GH_TOKEN" ]; then
+            OUTPUT=$(gh gist create logfile.log --public -d "Semiconzone Bot Log $(date +%Y-%m-%d)" 2>&1) || true
+            GIST_URL=$(echo "$OUTPUT" | grep -o 'https://gist.github.com/[^ ]*' | head -1)
+            if [ -n "$GIST_URL" ]; then
+              echo "url=$GIST_URL" >> "$GITHUB_OUTPUT"
+              echo "✅ Log uploaded: $GIST_URL"
+            fi
+          fi
 
       - name: Send to Telegram
         env:
