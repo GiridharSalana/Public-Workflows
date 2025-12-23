@@ -6,55 +6,17 @@ on:
   workflow_dispatch:
     inputs:
       link:
-        description: 'Article URL (for link mode - generates video from article)'
+        description: 'Article URL (for link mode)'
         required: false
         type: string
       text:
-        description: 'Topic/Prompt (for text mode - generates video about topic)'
+        description: 'Topic/Prompt (for text mode)'
         required: false
         type: string
       config:
         description: 'Configuration JSON (optional)'
         required: false
         type: string
-      news_duration:
-        description: 'Video duration in seconds (default: 120)'
-        required: false
-        type: string
-        default: '120'
-      news_style:
-        description: 'Script style (professional/casual/dramatic)'
-        required: false
-        type: choice
-        options:
-          - professional
-          - casual
-          - dramatic
-        default: 'professional'
-      news_categories:
-        description: 'News categories (space-separated, e.g., "world technology")'
-        required: false
-        type: string
-        default: 'world technology'
-      upload_youtube:
-        description: 'Upload to YouTube'
-        required: false
-        type: boolean
-        default: true
-      generate_shorts:
-        description: 'Also generate YouTube Shorts'
-        required: false
-        type: boolean
-        default: true
-      youtube_privacy:
-        description: 'YouTube video privacy'
-        required: false
-        type: choice
-        options:
-          - public
-          - unlisted
-          - private
-        default: 'public'
   repository_dispatch:
     types: [youtube-automation]
 
@@ -100,6 +62,15 @@ jobs:
             -d text="$MESSAGE" \
             -d parse_mode="Markdown"
 
+      - name: Parse Config JSON
+        id: parse_config
+        run: |
+          CONFIG='${{ github.event.inputs.config }}'
+          if [ -n "$CONFIG" ]; then
+            echo "Parsing config JSON..."
+            echo "$CONFIG" | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> $GITHUB_ENV
+          fi
+
       - name: Run Application
         env:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
@@ -109,50 +80,23 @@ jobs:
           NEWSAPI_KEY: ${{ secrets.YOUTUBE_NEWSAPI_KEY }}
           PEXELS_API_KEY: ${{ secrets.YOUTUBE_PEXELS_API_KEY }}
           PIXABAY_API_KEY: ${{ secrets.YOUTUBE_PIXABAY_API_KEY }}
-          LLM_PROVIDER: ${{ vars.YOUTUBE_LLM_PROVIDER || 'cohere' }}
-          USER_APPROVAL: ${{ vars.YOUTUBE_USER_APPROVAL || 'false' }}
+          LLM_PROVIDER: ${{ env.LLM_PROVIDER || vars.YOUTUBE_LLM_PROVIDER || 'cohere' }}
+          USER_APPROVAL: ${{ env.USER_APPROVAL || vars.YOUTUBE_USER_APPROVAL || 'false' }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.YOUTUBE_TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.YOUTUBE_TELEGRAM_CHAT_ID }}
           YOUTUBE_BOT_GITHUB_TOKEN: ${{ secrets.GH_PAT }}
           PYTHONUNBUFFERED: 1
         run: |
-          # Check for manual mode (--link or --text)
           if [ -n "${{ github.event.inputs.link }}" ]; then
             echo "🔗 Running in Link Mode"
-            CMD="uv run python main.py --link '${{ github.event.inputs.link }}'"
+            uv run main.py --link "${{ github.event.inputs.link }}" | tee logfile.log
           elif [ -n "${{ github.event.inputs.text }}" ]; then
             echo "✍️ Running in Text Mode"
-            CMD="uv run python main.py --text '${{ github.event.inputs.text }}'"
+            uv run main.py --text "${{ github.event.inputs.text }}" | tee logfile.log
           else
             echo "🔄 Running in Auto Mode"
-            CMD="uv run python main.py"
-            CMD="$CMD --news-categories ${{ github.event.inputs.news_categories || 'world technology' }}"
+            uv run main.py | tee logfile.log
           fi
-          
-          # Common options
-          CMD="$CMD --news-duration ${{ github.event.inputs.news_duration || '120' }}"
-          CMD="$CMD --news-style ${{ github.event.inputs.news_style || 'professional' }}"
-          
-          # Config override if provided
-          if [ -n "${{ github.event.inputs.config }}" ]; then
-            echo "${{ github.event.inputs.config }}" > /tmp/config_override.json
-            CMD="$CMD -c /tmp/config_override.json"
-          fi
-
-          if [ "${{ github.event.inputs.upload_youtube }}" == "true" ] || [ -z "${{ github.event.inputs.upload_youtube }}" ]; then
-            CMD="$CMD --upload-youtube --youtube-privacy ${{ github.event.inputs.youtube_privacy || 'public' }}"
-          else
-            CMD="$CMD --no-upload-youtube"
-          fi
-
-          if [ "${{ github.event.inputs.generate_shorts }}" == "true" ] || [ -z "${{ github.event.inputs.generate_shorts }}" ]; then
-            CMD="$CMD --long-and-shorts"
-          else
-            CMD="$CMD --no-shorts"
-          fi
-
-          echo "🚀 Running: $CMD"
-          eval "$CMD" 2>&1 | tee logfile.log
 
       - name: Send Completion Message to Telegram
         env:
