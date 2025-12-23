@@ -132,8 +132,10 @@ jobs:
             OUTPUT=$(gh gist create logfile.log --public -d "Semiconzone Bot Log $(date +%Y-%m-%d)" 2>&1) || true
             GIST_URL=$(echo "$OUTPUT" | grep -o 'https://gist.github.com/[^ ]*' | head -1)
             if [ -n "$GIST_URL" ]; then
-              echo "url=$GIST_URL" >> "$GITHUB_OUTPUT"
-              echo "✅ Log uploaded: $GIST_URL"
+              # Convert to raw URL: gist.github.com/USER/ID -> gist.githubusercontent.com/USER/ID/raw/logfile.log
+              RAW_URL=$(echo "$GIST_URL" | sed 's|gist.github.com|gist.githubusercontent.com|')/raw/logfile.log
+              echo "url=$RAW_URL" >> "$GITHUB_OUTPUT"
+              echo "✅ Log uploaded: $RAW_URL"
             fi
           fi
 
