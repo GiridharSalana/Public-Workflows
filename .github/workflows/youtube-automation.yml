@@ -156,7 +156,7 @@ jobs:
         run: |
           if [ -f creds/youtube_token.pickle ] && [ -n "$GH_TOKEN" ]; then
             NEW_TOKEN=$(base64 -w 0 creds/youtube_token.pickle)
-            echo "$NEW_TOKEN" | gh secret set YOUTUBE_TOKEN_PICKLE --repo GiridharSalana/Public_Workflows
+            echo "$NEW_TOKEN" | gh secret set YOUTUBE_TOKEN_PICKLE --repo GiridharSalana/Public-Workflows
             echo "✅ YouTube token updated"
           fi
 
