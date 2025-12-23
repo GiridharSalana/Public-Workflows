@@ -185,17 +185,13 @@ jobs:
           GH_TOKEN: ${{ secrets.YOUTUBE_BOT_GITHUB_TOKEN || secrets.BLOGGER_BOT_GITHUB_TOKEN }}
         run: |
           if [ -f "logfile.log" ] && [ -n "$GH_TOKEN" ]; then
-            # Truncate log if too large (max 1MB for gist)
-            if [ $(stat -f%z "logfile.log" 2>/dev/null || stat -c%s "logfile.log") -gt 900000 ]; then
-              echo "Log too large, truncating..." 
-              tail -c 900000 logfile.log > logfile_truncated.log
-              mv logfile_truncated.log logfile.log
-            fi
-            # Upload using gh CLI instead of curl (handles escaping better)
-            gh gist create logfile.log --public -d "YouTube Automation Log" > gist_url.txt 2>&1 || true
-            if [ -f gist_url.txt ]; then
-              RAW_URL=$(cat gist_url.txt | grep -o 'https://[^ ]*' | head -1)
-              echo "url=$RAW_URL" >> "$GITHUB_OUTPUT"
+            # Use gh gist create - reads from file so handles large logs
+            GIST_URL=$(gh gist create logfile.log --public -d "YouTube Automation Log $(date +%Y-%m-%d)" 2>&1) || true
+            if [[ "$GIST_URL" == *"gist.github.com"* ]]; then
+              echo "url=$GIST_URL" >> "$GITHUB_OUTPUT"
+              echo "✅ Log uploaded: $GIST_URL"
+            else
+              echo "⚠️ Gist upload failed, but video generation succeeded"
             fi
           fi
 
