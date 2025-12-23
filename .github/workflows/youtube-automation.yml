@@ -5,6 +5,18 @@ on:
     - cron: '0 6 * * *'   # 11:30 AM IST (6:00 UTC)
   workflow_dispatch:
     inputs:
+      link:
+        description: 'Article URL (for link mode - generates video from article)'
+        required: false
+        type: string
+      text:
+        description: 'Topic/Prompt (for text mode - generates video about topic)'
+        required: false
+        type: string
+      config:
+        description: 'Configuration JSON (optional)'
+        required: false
+        type: string
       news_duration:
         description: 'Video duration in seconds (default: 120)'
         required: false
@@ -104,10 +116,28 @@ jobs:
           YOUTUBE_BOT_GITHUB_TOKEN: ${{ secrets.GH_PAT }}
           PYTHONUNBUFFERED: 1
         run: |
-          CMD="uv run python main.py"
+          # Check for manual mode (--link or --text)
+          if [ -n "${{ github.event.inputs.link }}" ]; then
+            echo "🔗 Running in Link Mode"
+            CMD="uv run python main.py --link '${{ github.event.inputs.link }}'"
+          elif [ -n "${{ github.event.inputs.text }}" ]; then
+            echo "✍️ Running in Text Mode"
+            CMD="uv run python main.py --text '${{ github.event.inputs.text }}'"
+          else
+            echo "🔄 Running in Auto Mode"
+            CMD="uv run python main.py"
+            CMD="$CMD --news-categories ${{ github.event.inputs.news_categories || 'world technology' }}"
+          fi
+          
+          # Common options
           CMD="$CMD --news-duration ${{ github.event.inputs.news_duration || '120' }}"
           CMD="$CMD --news-style ${{ github.event.inputs.news_style || 'professional' }}"
-          CMD="$CMD --news-categories ${{ github.event.inputs.news_categories || 'world technology' }}"
+          
+          # Config override if provided
+          if [ -n "${{ github.event.inputs.config }}" ]; then
+            echo "${{ github.event.inputs.config }}" > /tmp/config_override.json
+            CMD="$CMD -c /tmp/config_override.json"
+          fi
 
           if [ "${{ github.event.inputs.upload_youtube }}" == "true" ] || [ -z "${{ github.event.inputs.upload_youtube }}" ]; then
             CMD="$CMD --upload-youtube --youtube-privacy ${{ github.event.inputs.youtube_privacy || 'public' }}"
