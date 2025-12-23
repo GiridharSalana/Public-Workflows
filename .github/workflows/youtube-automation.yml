@@ -88,22 +88,6 @@ jobs:
             -d text="$MESSAGE" \
             -d parse_mode="Markdown"
 
-      - name: Check YouTube OAuth Credentials
-        run: |
-          # Credentials are committed to the Youtube-Automation repo (like Blogger/Semiconzone)
-          # Just verify they exist after checkout
-          if [ -f "creds/youtube_credentials.json" ]; then
-            echo "✅ YouTube credentials file found"
-          else
-            echo "❌ creds/youtube_credentials.json not found!"
-            exit 1
-          fi
-          if [ -f "creds/youtube_token.pickle" ]; then
-            echo "✅ YouTube token file found"
-          else
-            echo "⚠️ creds/youtube_token.pickle not found - will authenticate via Telegram"
-          fi
-
       - name: Run Application
         env:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
