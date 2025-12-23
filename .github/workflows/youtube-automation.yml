@@ -185,21 +185,18 @@ jobs:
           GH_TOKEN: ${{ secrets.YOUTUBE_BOT_GITHUB_TOKEN || secrets.BLOGGER_BOT_GITHUB_TOKEN }}
         run: |
           if [ -f "logfile.log" ] && [ -n "$GH_TOKEN" ]; then
-            CONTENT=$(jq -Rs . < "logfile.log")
-            RESPONSE=$(curl -s -X POST https://api.github.com/gists \
-              -H "Authorization: token $GH_TOKEN" \
-              -H "Accept: application/vnd.github.v3+json" \
-              -d "{
-                \"description\": \"YouTube Automation Log\",
-                \"public\": true,
-                \"files\": {
-                  \"logfile.log\": {
-                    \"content\": $CONTENT
-                  }
-                }
-              }")
-            RAW_URL=$(echo "$RESPONSE" | jq -r '.files."logfile.log".raw_url')
-            echo "url=$RAW_URL" >> "$GITHUB_OUTPUT"
+            # Truncate log if too large (max 1MB for gist)
+            if [ $(stat -f%z "logfile.log" 2>/dev/null || stat -c%s "logfile.log") -gt 900000 ]; then
+              echo "Log too large, truncating..." 
+              tail -c 900000 logfile.log > logfile_truncated.log
+              mv logfile_truncated.log logfile.log
+            fi
+            # Upload using gh CLI instead of curl (handles escaping better)
+            gh gist create logfile.log --public -d "YouTube Automation Log" > gist_url.txt 2>&1 || true
+            if [ -f gist_url.txt ]; then
+              RAW_URL=$(cat gist_url.txt | grep -o 'https://[^ ]*' | head -1)
+              echo "url=$RAW_URL" >> "$GITHUB_OUTPUT"
+            fi
           fi
 
       - name: Send Log to Telegram
