@@ -2,8 +2,6 @@ name: Run YouTube Automation
 
 on:
   workflow_dispatch:  # Allows manual triggering
-  schedule:
-    - cron: '0 6 * * *'   # 11:30 AM IST (6:00 UTC)
     inputs:
       news_duration:
         description: 'Video duration in seconds (default: 120)'
@@ -43,6 +41,8 @@ on:
           - unlisted
           - private
         default: 'public'
+  schedule:
+    - cron: '0 6 * * *'   # 11:30 AM IST (6:00 UTC)
 
 permissions:
   contents: write
