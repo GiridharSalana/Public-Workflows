@@ -56,7 +56,7 @@ jobs:
         with:
           repository: GiridharSalana/Youtube-Automation
           path: ./Youtube-Automation
-          token: ${{ secrets.YOUTUBE_BOT_GITHUB_TOKEN }}
+          token: ${{ secrets.YOUTUBE_BOT_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
       - name: Set Up Python
