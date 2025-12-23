@@ -58,7 +58,7 @@ jobs:
         with:
           repository: GiridharSalana/Youtube-Automation
           path: ./Youtube-Automation
-          token: ${{ secrets.GITHUB_TOKEN_PAT }}
+          token: ${{ secrets.GH_PAT }}
           fetch-depth: 0
 
       - name: Set Up Python
@@ -161,7 +161,7 @@ jobs:
         working-directory: ./Youtube-Automation
         if: success()
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN_PAT }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           if [ -f creds/youtube_token.pickle ] && [ -n "$GH_TOKEN" ]; then
             NEW_TOKEN=$(base64 -w 0 creds/youtube_token.pickle)
@@ -180,7 +180,7 @@ jobs:
       - name: Push changes to Youtube-Automation
         working-directory: ./Youtube-Automation
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN_PAT }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           if [ -n "$GH_TOKEN" ]; then
             git push https://${GH_TOKEN}@github.com/GiridharSalana/Youtube-Automation.git HEAD:main || echo "No changes to push"
@@ -191,7 +191,7 @@ jobs:
         id: upload
         working-directory: ./Youtube-Automation
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN_PAT }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           if [ -f "logfile.log" ] && [ -n "$GH_TOKEN" ]; then
             OUTPUT=$(gh gist create logfile.log --public -d "YouTube Automation Log $(date +%Y-%m-%d)" 2>&1) || true
