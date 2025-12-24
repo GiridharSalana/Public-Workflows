@@ -88,15 +88,51 @@ jobs:
           YOUTUBE_BOT_GITHUB_TOKEN: ${{ secrets.GH_PAT }}
           PYTHONUNBUFFERED: 1
         run: |
+          # Build CLI arguments from environment variables (set by config JSON)
+          ARGS=""
+          
+          # News options
+          [ -n "$NEWS_DURATION" ] && ARGS="$ARGS --news-duration $NEWS_DURATION"
+          [ -n "$NEWS_NUM" ] && ARGS="$ARGS --news-num $NEWS_NUM"
+          [ -n "$NEWS_HOURS" ] && ARGS="$ARGS --news-hours $NEWS_HOURS"
+          [ -n "$NEWS_STYLE" ] && ARGS="$ARGS --news-style $NEWS_STYLE"
+          [ -n "$NEWS_CATEGORIES" ] && ARGS="$ARGS --news-categories $NEWS_CATEGORIES"
+          [ -n "$NUM_VIDEOS" ] && ARGS="$ARGS --num-videos $NUM_VIDEOS"
+          [ -n "$ARTICLES_PER_VIDEO" ] && ARGS="$ARGS --articles-per-video $ARTICLES_PER_VIDEO"
+          
+          # Video output mode
+          if [ "$GENERATE_SHORTS" = "long-only" ]; then
+            ARGS="$ARGS --no-shorts"
+          elif [ "$GENERATE_SHORTS" = "shorts-only" ]; then
+            ARGS="$ARGS --youtube-shorts --no-shorts"
+          fi
+          [ "$SHORTS_SPLIT" = "false" ] && ARGS="$ARGS --no-shorts-split"
+          
+          # YouTube options
+          [ "$UPLOAD_YOUTUBE" = "false" ] && ARGS="$ARGS --no-upload-youtube"
+          [ -n "$YOUTUBE_PRIVACY" ] && ARGS="$ARGS --youtube-privacy $YOUTUBE_PRIVACY"
+          [ -n "$YOUTUBE_PLAYLIST" ] && ARGS="$ARGS --youtube-playlist \"$YOUTUBE_PLAYLIST\""
+          [ "$GENERATE_THUMBNAIL" = "false" ] && ARGS="$ARGS --no-thumbnail"
+          
+          # TTS options
+          [ -n "$TTS_ENGINE" ] && ARGS="$ARGS --tts-engine $TTS_ENGINE"
+          [ -n "$TTS_VOICE" ] && ARGS="$ARGS --tts-voice $TTS_VOICE"
+          
+          # Media options
+          [ "$AUTO_MEDIA" = "false" ] && ARGS="$ARGS --no-auto-media"
+          
+          # Database
+          [ "$USE_DATABASE" = "false" ] && ARGS="$ARGS --no-database"
+          
           if [ -n "${{ github.event.inputs.link }}" ]; then
             echo "🔗 Running in Link Mode"
-            uv run main.py --link "${{ github.event.inputs.link }}" | tee logfile.log
+            eval "uv run main.py --link \"${{ github.event.inputs.link }}\" $ARGS" | tee logfile.log
           elif [ -n "${{ github.event.inputs.text }}" ]; then
             echo "✍️ Running in Text Mode"
-            uv run main.py --text "${{ github.event.inputs.text }}" | tee logfile.log
+            eval "uv run main.py --text \"${{ github.event.inputs.text }}\" $ARGS" | tee logfile.log
           else
             echo "🔄 Running in Auto Mode"
-            uv run main.py | tee logfile.log
+            eval "uv run main.py $ARGS" | tee logfile.log
           fi
 
       - name: Send Completion Message to Telegram
