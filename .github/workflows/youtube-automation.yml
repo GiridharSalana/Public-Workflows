@@ -82,6 +82,7 @@ jobs:
           PIXABAY_API_KEY: ${{ secrets.YOUTUBE_PIXABAY_API_KEY }}
           LLM_PROVIDER: ${{ env.LLM_PROVIDER || vars.YOUTUBE_LLM_PROVIDER || 'cohere' }}
           USER_APPROVAL: ${{ env.USER_APPROVAL || vars.YOUTUBE_USER_APPROVAL || 'false' }}
+          REJECTED_STATE: ${{ env.REJECTED_STATE || vars.REJECTED_STATE || 'delete' }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.YOUTUBE_TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.YOUTUBE_TELEGRAM_CHAT_ID }}
           YOUTUBE_BOT_GITHUB_TOKEN: ${{ secrets.GH_PAT }}
