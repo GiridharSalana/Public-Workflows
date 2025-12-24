@@ -155,6 +155,8 @@ jobs:
 
       - name: Push changes
         run: |
+          # Pull any remote changes first, then push
+          git pull --rebase https://${{ secrets.GH_PAT }}@github.com/GiridharSalana/Youtube-Automation.git main || true
           git push https://${{ secrets.GH_PAT }}@github.com/GiridharSalana/Youtube-Automation.git HEAD:main || echo "No changes to push"
           
       - name: Upload log to GitHub Gist
