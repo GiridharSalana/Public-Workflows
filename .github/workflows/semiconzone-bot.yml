@@ -154,4 +154,5 @@ jobs:
       - name: Setup Telegram webhook (Polling to Webhook)
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.SEMICONZONE_TELEGRAM_BOT_TOKEN }}
-        run:  curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" -d "url=https://blogger-bot.giridharsalana-3e5.workers.dev"
+          TELEGRAM_WEBHOOK_URL: ${{ vars.TELEGRAM_WEBHOOK_URL }}
+        run: curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" -d "url=${TELEGRAM_WEBHOOK_URL}"
