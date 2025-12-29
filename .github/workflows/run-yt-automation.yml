@@ -1,0 +1,220 @@
+name: YouTube Automation
+
+on:
+  schedule:
+    - cron: '30 12 * * *'   # 6:00 PM IST
+  workflow_dispatch:
+    inputs:
+      link:
+        description: 'Article URL (for link mode)'
+        required: false
+        type: string
+      text:
+        description: 'Topic/Prompt (for text mode)'
+        required: false
+        type: string
+      config:
+        description: 'Configuration JSON (optional)'
+        required: false
+        type: string
+  repository_dispatch:
+    types: [youtube-automation]
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Public-Workflows
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install age
+        run: |
+          curl -LO https://github.com/FiloSottile/age/releases/download/v1.1.1/age-v1.1.1-linux-amd64.tar.gz
+          tar -xzf age-v1.1.1-linux-amd64.tar.gz
+          sudo mv age/age /usr/local/bin/
+          sudo mv age/age-keygen /usr/local/bin/
+
+      - name: Decrypt repository
+        env:
+          AGE_SECRET_KEY: ${{ secrets.AGE_SECRET_KEY }}
+        run: |
+          echo "$AGE_SECRET_KEY" > /tmp/age-key.txt
+          age -d -i /tmp/age-key.txt -o youtube-automation.tar.gz work_files/youtube-automation.age
+          mkdir -p workspace
+          tar -xzf youtube-automation.tar.gz -C workspace
+          rm youtube-automation.tar.gz /tmp/age-key.txt
+
+      - name: Set Up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install UV and FFmpeg
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Remove Telegram webhook
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.YOUTUBE_TELEGRAM_BOT_TOKEN }}
+        run: curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/deleteWebhook"
+
+      - name: Send Start Message to Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.YOUTUBE_TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.YOUTUBE_TELEGRAM_CHAT_ID }}
+        run: |
+          MESSAGE="🚀 The YouTube Automation script has started!"
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            -d text="$MESSAGE" \
+            -d parse_mode="Markdown"
+
+      - name: Parse Config JSON
+        id: parse_config
+        run: |
+          CONFIG='${{ github.event.inputs.config }}'
+          if [ -n "$CONFIG" ]; then
+            echo "Parsing config JSON..."
+            echo "$CONFIG" | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> $GITHUB_ENV
+          fi
+
+      - name: Run Application
+        working-directory: workspace
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
+          CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+          NEWSAPI_KEY: ${{ secrets.YOUTUBE_NEWSAPI_KEY }}
+          PEXELS_API_KEY: ${{ secrets.YOUTUBE_PEXELS_API_KEY }}
+          PIXABAY_API_KEY: ${{ secrets.YOUTUBE_PIXABAY_API_KEY }}
+          LLM_PROVIDER: ${{ env.LLM_PROVIDER || vars.YOUTUBE_LLM_PROVIDER || 'cohere' }}
+          USER_APPROVAL: ${{ env.USER_APPROVAL || vars.YOUTUBE_USER_APPROVAL || 'false' }}
+          REJECTED_STATE: ${{ env.REJECTED_STATE || vars.YOUTUBE_REJECTED_STATE || 'delete' }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.YOUTUBE_TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.YOUTUBE_TELEGRAM_CHAT_ID }}
+          YOUTUBE_BOT_GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+          PYTHONUNBUFFERED: 1
+        run: |
+          # Build CLI arguments from environment variables (set by config JSON)
+          ARGS=""
+          
+          # News options
+          [ -n "$NEWS_DURATION" ] && ARGS="$ARGS --news-duration $NEWS_DURATION"
+          [ -n "$NEWS_NUM" ] && ARGS="$ARGS --news-num $NEWS_NUM"
+          [ -n "$NEWS_HOURS" ] && ARGS="$ARGS --news-hours $NEWS_HOURS"
+          [ -n "$NEWS_STYLE" ] && ARGS="$ARGS --news-style $NEWS_STYLE"
+          [ -n "$NEWS_CATEGORIES" ] && ARGS="$ARGS --news-categories $NEWS_CATEGORIES"
+          [ -n "$NUM_VIDEOS" ] && ARGS="$ARGS --num-videos $NUM_VIDEOS"
+          [ -n "$ARTICLES_PER_VIDEO" ] && ARGS="$ARGS --articles-per-video $ARTICLES_PER_VIDEO"
+          
+          # Video output mode
+          if [ "$GENERATE_SHORTS" = "long-only" ]; then
+            ARGS="$ARGS --no-shorts"
+          elif [ "$GENERATE_SHORTS" = "shorts-only" ]; then
+            ARGS="$ARGS --youtube-shorts --no-shorts"
+          fi
+          [ "$SHORTS_SPLIT" = "false" ] && ARGS="$ARGS --no-shorts-split"
+          
+          # YouTube options
+          [ "$UPLOAD_YOUTUBE" = "false" ] && ARGS="$ARGS --no-upload-youtube"
+          [ -n "$YOUTUBE_PRIVACY" ] && ARGS="$ARGS --youtube-privacy $YOUTUBE_PRIVACY"
+          [ -n "$YOUTUBE_PLAYLIST" ] && ARGS="$ARGS --youtube-playlist \"$YOUTUBE_PLAYLIST\""
+          [ "$GENERATE_THUMBNAIL" = "false" ] && ARGS="$ARGS --no-thumbnail"
+          
+          # TTS options
+          [ -n "$TTS_ENGINE" ] && ARGS="$ARGS --tts-engine $TTS_ENGINE"
+          [ -n "$TTS_VOICE" ] && ARGS="$ARGS --tts-voice $TTS_VOICE"
+          
+          # Media options
+          [ "$AUTO_MEDIA" = "false" ] && ARGS="$ARGS --no-auto-media"
+          
+          # Database
+          [ "$USE_DATABASE" = "false" ] && ARGS="$ARGS --no-database"
+          
+          if [ -n "${{ github.event.inputs.link }}" ]; then
+            echo "🔗 Running in Link Mode"
+            eval "uv run main.py --link \"${{ github.event.inputs.link }}\" $ARGS" | tee logfile.log
+          elif [ -n "${{ github.event.inputs.text }}" ]; then
+            echo "✍️ Running in Text Mode"
+            eval "uv run main.py --text \"${{ github.event.inputs.text }}\" $ARGS" | tee logfile.log
+          else
+            echo "🔄 Running in Auto Mode"
+            eval "uv run main.py $ARGS" | tee logfile.log
+          fi
+
+      - name: Send Completion Message to Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.YOUTUBE_TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.YOUTUBE_TELEGRAM_CHAT_ID }}
+        run: |
+          MESSAGE="🎉 The YouTube Automation script has completed!"
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            -d text="$MESSAGE" \
+            -d parse_mode="Markdown"
+
+      - name: Re-encrypt and commit
+        env:
+          AGE_PUBLIC_KEY: ${{ secrets.AGE_PUBLIC_KEY }}
+        run: |
+          # Re-create encrypted archive from workspace
+          cd workspace
+          tar --exclude='.git' -czf ../youtube-automation.tar.gz .
+          cd ..
+          age -r "$AGE_PUBLIC_KEY" -o work_files/youtube-automation.age youtube-automation.tar.gz
+          rm youtube-automation.tar.gz
+          
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add work_files/youtube-automation.age
+          git commit -m "Update encrypted Youtube-Automation after run" || echo "No changes"
+          git push
+
+      - name: Trigger sync-back workflow
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          gh workflow run sync-back.yml -f repo=youtube
+
+      - name: Upload log to GitHub Gist
+        id: upload
+        working-directory: workspace
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          if [ -f "logfile.log" ] && [ -n "$GH_TOKEN" ]; then
+            OUTPUT=$(gh gist create logfile.log -d "YouTube Automation Log $(date +%Y-%m-%d)" 2>&1) || true
+            GIST_URL=$(echo "$OUTPUT" | grep -o 'https://gist.github.com/[^ ]*' | head -1)
+            if [ -n "$GIST_URL" ]; then
+              RAW_URL=$(echo "$GIST_URL" | sed 's|gist.github.com|gist.githubusercontent.com|')/raw/logfile.log
+              echo "url=$RAW_URL" >> "$GITHUB_OUTPUT"
+              echo "✅ Log uploaded: $RAW_URL"
+            fi
+          fi
+
+      - name: Send to Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.YOUTUBE_TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.YOUTUBE_TELEGRAM_CHAT_ID }}
+        run: |
+          MESSAGE="YouTube Automation Log file: [Logfile](${{ steps.upload.outputs.url }})"
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            -d text="$MESSAGE" \
+            -d parse_mode="Markdown"
+
+      - name: Setup Telegram webhook (Polling to Webhook)
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.YOUTUBE_TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_WEBHOOK_URL: ${{ vars.TELEGRAM_WEBHOOK_URL }}
+        run: curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" -d "url=${TELEGRAM_WEBHOOK_URL}"
+

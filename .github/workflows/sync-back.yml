@@ -1,0 +1,146 @@
+name: Sync Back to Private Repos
+
+on:
+  workflow_dispatch:
+    inputs:
+      repo:
+        description: 'Which repo to sync (youtube, blogger, semiconzone, or all)'
+        required: true
+        type: choice
+        options:
+          - youtube
+          - blogger
+          - semiconzone
+          - all
+
+permissions:
+  contents: read
+
+jobs:
+  sync-youtube:
+    if: ${{ github.event.inputs.repo == 'youtube' || github.event.inputs.repo == 'all' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Public-Workflows
+        uses: actions/checkout@v4
+
+      - name: Install age
+        run: |
+          curl -LO https://github.com/FiloSottile/age/releases/download/v1.1.1/age-v1.1.1-linux-amd64.tar.gz
+          tar -xzf age-v1.1.1-linux-amd64.tar.gz
+          sudo mv age/age /usr/local/bin/
+
+      - name: Decrypt repository
+        env:
+          AGE_SECRET_KEY: ${{ secrets.AGE_SECRET_KEY }}
+        run: |
+          echo "$AGE_SECRET_KEY" > /tmp/age-key.txt
+          age -d -i /tmp/age-key.txt -o youtube-automation.tar.gz work_files/youtube-automation.age
+          mkdir -p workspace
+          tar -xzf youtube-automation.tar.gz -C workspace
+          rm youtube-automation.tar.gz /tmp/age-key.txt
+
+      - name: Checkout private repo
+        uses: actions/checkout@v4
+        with:
+          repository: GiridharSalana/Youtube-Automation
+          token: ${{ secrets.GH_PAT }}
+          path: private-repo
+          fetch-depth: 0
+
+      - name: Sync changes to private repo
+        run: |
+          # Copy all files from workspace to private repo (excluding .git)
+          rsync -av --exclude='.git' workspace/ private-repo/
+          
+          cd private-repo
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add .
+          git commit -m "Sync from Public-Workflows run" || echo "No changes"
+          git push
+
+  sync-blogger:
+    if: ${{ github.event.inputs.repo == 'blogger' || github.event.inputs.repo == 'all' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Public-Workflows
+        uses: actions/checkout@v4
+
+      - name: Install age
+        run: |
+          curl -LO https://github.com/FiloSottile/age/releases/download/v1.1.1/age-v1.1.1-linux-amd64.tar.gz
+          tar -xzf age-v1.1.1-linux-amd64.tar.gz
+          sudo mv age/age /usr/local/bin/
+
+      - name: Decrypt repository
+        env:
+          AGE_SECRET_KEY: ${{ secrets.AGE_SECRET_KEY }}
+        run: |
+          echo "$AGE_SECRET_KEY" > /tmp/age-key.txt
+          age -d -i /tmp/age-key.txt -o blogger-automation.tar.gz work_files/blogger-automation.age
+          mkdir -p workspace
+          tar -xzf blogger-automation.tar.gz -C workspace
+          rm blogger-automation.tar.gz /tmp/age-key.txt
+
+      - name: Checkout private repo
+        uses: actions/checkout@v4
+        with:
+          repository: GiridharSalana/Blogger-Automation
+          token: ${{ secrets.GH_PAT }}
+          path: private-repo
+          fetch-depth: 0
+
+      - name: Sync changes to private repo
+        run: |
+          rsync -av --exclude='.git' workspace/ private-repo/
+          
+          cd private-repo
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add .
+          git commit -m "Sync from Public-Workflows run" || echo "No changes"
+          git push
+
+  sync-semiconzone:
+    if: ${{ github.event.inputs.repo == 'semiconzone' || github.event.inputs.repo == 'all' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Public-Workflows
+        uses: actions/checkout@v4
+
+      - name: Install age
+        run: |
+          curl -LO https://github.com/FiloSottile/age/releases/download/v1.1.1/age-v1.1.1-linux-amd64.tar.gz
+          tar -xzf age-v1.1.1-linux-amd64.tar.gz
+          sudo mv age/age /usr/local/bin/
+
+      - name: Decrypt repository
+        env:
+          AGE_SECRET_KEY: ${{ secrets.AGE_SECRET_KEY }}
+        run: |
+          echo "$AGE_SECRET_KEY" > /tmp/age-key.txt
+          age -d -i /tmp/age-key.txt -o semiconzone-bot.tar.gz work_files/semiconzone-bot.age
+          mkdir -p workspace
+          tar -xzf semiconzone-bot.tar.gz -C workspace
+          rm semiconzone-bot.tar.gz /tmp/age-key.txt
+
+      - name: Checkout private repo
+        uses: actions/checkout@v4
+        with:
+          repository: GiridharSalana/Semiconzone-Bot
+          token: ${{ secrets.GH_PAT }}
+          path: private-repo
+          fetch-depth: 0
+
+      - name: Sync changes to private repo
+        run: |
+          rsync -av --exclude='.git' workspace/ private-repo/
+          
+          cd private-repo
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add .
+          git commit -m "Sync from Public-Workflows run" || echo "No changes"
+          git push
+

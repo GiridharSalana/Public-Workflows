@@ -3,7 +3,7 @@ name: Semiconzone Bot Automation
 on:
   schedule:
     - cron: '30 11 * * *'   # 5:00 PM IST
-  workflow_dispatch:  # Allows manual triggering
+  workflow_dispatch:
     inputs:
       link:
         description: 'Article URL (for link mode)'
@@ -21,18 +21,33 @@ on:
     types: [semiconzone-bot]
 
 permissions:
-  contents: write  # Needed to allow pushing with GITHUB_TOKEN
+  contents: write
 
 jobs:
-  build:
+  run:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Public-Workflows
+        uses: actions/checkout@v4
         with:
-          repository: GiridharSalana/Semiconzone-Bot
-          token: ${{ secrets.GH_PAT }}
-          persist-credentials: false  # Avoid using default GITHUB_TOKEN for pushing
-          fetch-depth: 0  # Ensure full history is available
+          fetch-depth: 0
+
+      - name: Install age
+        run: |
+          curl -LO https://github.com/FiloSottile/age/releases/download/v1.1.1/age-v1.1.1-linux-amd64.tar.gz
+          tar -xzf age-v1.1.1-linux-amd64.tar.gz
+          sudo mv age/age /usr/local/bin/
+          sudo mv age/age-keygen /usr/local/bin/
+
+      - name: Decrypt repository
+        env:
+          AGE_SECRET_KEY: ${{ secrets.AGE_SECRET_KEY }}
+        run: |
+          echo "$AGE_SECRET_KEY" > /tmp/age-key.txt
+          age -d -i /tmp/age-key.txt -o semiconzone-bot.tar.gz work_files/semiconzone-bot.age
+          mkdir -p workspace
+          tar -xzf semiconzone-bot.tar.gz -C workspace
+          rm semiconzone-bot.tar.gz /tmp/age-key.txt
 
       - name: Set Up Python
         uses: actions/setup-python@v5
@@ -47,18 +62,18 @@ jobs:
       - name: Remove Telegram webhook
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.SEMICONZONE_TELEGRAM_BOT_TOKEN }}
-        run:  curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/deleteWebhook"
-          
+        run: curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/deleteWebhook"
+
       - name: Send Start Message to Telegram
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.SEMICONZONE_TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.SEMICONZONE_TELEGRAM_CHAT_ID }}
         run: |
-            MESSAGE="🚀 The Semiconzone Bot has started!"
-            curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-              -d chat_id="${TELEGRAM_CHAT_ID}" \
-              -d text="$MESSAGE" \
-              -d parse_mode="Markdown"
+          MESSAGE="🚀 The Semiconzone Bot has started!"
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            -d text="$MESSAGE" \
+            -d parse_mode="Markdown"
 
       - name: Parse Config JSON
         id: parse_config
@@ -68,8 +83,9 @@ jobs:
             echo "Parsing config JSON..."
             echo "$CONFIG" | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> $GITHUB_ENV
           fi
-                            
+
       - name: Run Application
+        working-directory: workspace
         env:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
@@ -107,35 +123,45 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.SEMICONZONE_TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.SEMICONZONE_TELEGRAM_CHAT_ID }}
         run: |
-            MESSAGE="🎉 The Semiconzone Bot has completed!"
-            curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-              -d chat_id="${TELEGRAM_CHAT_ID}" \
-              -d text="$MESSAGE" \
-              -d parse_mode="Markdown"
+          MESSAGE="🎉 The Semiconzone Bot has completed!"
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            -d text="$MESSAGE" \
+            -d parse_mode="Markdown"
 
-      - name: Commit files
+      - name: Re-encrypt and commit
+        env:
+          AGE_PUBLIC_KEY: ${{ secrets.AGE_PUBLIC_KEY }}
         run: |
-          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add .
-          git commit -m "Automated update from Semiconzone Bot" || echo "No changes to commit"
+          # Re-create encrypted archive from workspace
+          cd workspace
+          tar --exclude='.git' -czf ../semiconzone-bot.tar.gz .
+          cd ..
+          age -r "$AGE_PUBLIC_KEY" -o work_files/semiconzone-bot.age semiconzone-bot.tar.gz
+          rm semiconzone-bot.tar.gz
           
-      - name: Push changes
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add work_files/semiconzone-bot.age
+          git commit -m "Update encrypted Semiconzone-Bot after run" || echo "No changes"
+          git push
+
+      - name: Trigger sync-back workflow
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          # Pull any remote changes first, then push
-          git pull --rebase https://${{ secrets.GH_PAT }}@github.com/GiridharSalana/Semiconzone-Bot.git main || true
-          git push https://${{ secrets.GH_PAT }}@github.com/GiridharSalana/Semiconzone-Bot.git HEAD:main || echo "No changes to push"
-          
+          gh workflow run sync-back.yml -f repo=semiconzone
+
       - name: Upload log to GitHub Gist
         id: upload
+        working-directory: workspace
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           if [ -f "logfile.log" ] && [ -n "$GH_TOKEN" ]; then
-            OUTPUT=$(gh gist create logfile.log --public -d "Semiconzone Bot Log $(date +%Y-%m-%d)" 2>&1) || true
+            OUTPUT=$(gh gist create logfile.log -d "Semiconzone Bot Log $(date +%Y-%m-%d)" 2>&1) || true
             GIST_URL=$(echo "$OUTPUT" | grep -o 'https://gist.github.com/[^ ]*' | head -1)
             if [ -n "$GIST_URL" ]; then
-              # Convert to raw URL: gist.github.com/USER/ID -> gist.githubusercontent.com/USER/ID/raw/logfile.log
               RAW_URL=$(echo "$GIST_URL" | sed 's|gist.github.com|gist.githubusercontent.com|')/raw/logfile.log
               echo "url=$RAW_URL" >> "$GITHUB_OUTPUT"
               echo "✅ Log uploaded: $RAW_URL"
@@ -158,3 +184,4 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.SEMICONZONE_TELEGRAM_BOT_TOKEN }}
           TELEGRAM_WEBHOOK_URL: ${{ vars.TELEGRAM_WEBHOOK_URL }}
         run: curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" -d "url=${TELEGRAM_WEBHOOK_URL}"
+

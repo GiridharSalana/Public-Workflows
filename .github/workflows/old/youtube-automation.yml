@@ -165,7 +165,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           if [ -f "logfile.log" ] && [ -n "$GH_TOKEN" ]; then
-            OUTPUT=$(gh gist create logfile.log --public -d "YouTube Automation Log $(date +%Y-%m-%d)" 2>&1) || true
+            OUTPUT=$(gh gist create logfile.log -d "YouTube Automation Log $(date +%Y-%m-%d)" 2>&1) || true
             GIST_URL=$(echo "$OUTPUT" | grep -o 'https://gist.github.com/[^ ]*' | head -1)
             if [ -n "$GIST_URL" ]; then
               # Convert to raw URL: gist.github.com/USER/ID -> gist.githubusercontent.com/USER/ID/raw/logfile.log

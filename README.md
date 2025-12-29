@@ -1,3 +1,3 @@
 # Public Workflows
 
-Centralized GitHub Actions workflows for triggering automation bots via dispatch.
+Centralized GitHub Actions workflows for automation bots.
