@@ -23,14 +23,27 @@ on:
 permissions:
   contents: write
 
-concurrency:
-  group: bot-runs
-  cancel-in-progress: false
-
 jobs:
   run:
     runs-on: ubuntu-latest
     steps:
+      - name: Wait for other bots to finish
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          echo "🕐 Checking for running bot workflows..."
+          while true; do
+            # Check if any other bot workflow is running (exclude this run)
+            RUNNING=$(gh run list -R GiridharSalana/Public-Workflows --json name,status,databaseId \
+              -q "[.[] | select(.status == \"in_progress\" and .name != \"Blog-Bot\")] | length")
+            if [[ "$RUNNING" == "0" ]]; then
+              echo "✅ No other bots running, proceeding..."
+              break
+            fi
+            echo "⏳ $RUNNING other bot(s) running, waiting 30s..."
+            sleep 30
+          done
+
       - name: Checkout Public-Workflows
         uses: actions/checkout@v4
         with:
