@@ -169,7 +169,7 @@ jobs:
         run: |
           # Re-create encrypted archive from workspace
           cd workspace
-          tar --exclude='.git' --exclude='.venv' --exclude='out' --exclude='__pycache__' --exclude='.temp' -czf ../youtube-automation.tar.gz .
+          tar --exclude='.git' --exclude='.venv' --exclude='out' --exclude='__pycache__' --exclude='.temp' --exclude='assets/cache' -czf ../youtube-automation.tar.gz .
           cd ..
           age -r "$AGE_PUBLIC_KEY" -o work_files/youtube-automation.age youtube-automation.tar.gz
           rm youtube-automation.tar.gz
