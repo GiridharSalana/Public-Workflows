@@ -24,7 +24,7 @@ permissions:
   contents: write
 
 jobs:
-  run:
+  ytub-bot:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Public-Workflows
@@ -87,7 +87,7 @@ jobs:
             echo "$CONFIG" | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> $GITHUB_ENV
           fi
 
-      - name: Run Application
+      - name: Ytub-Bot Run
         working-directory: workspace
         env:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
