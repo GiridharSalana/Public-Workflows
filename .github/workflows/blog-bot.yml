@@ -26,7 +26,6 @@ permissions:
 jobs:
   run:
     runs-on: ubuntu-latest
-    environment: serialized-env
     steps:
       - name: Checkout Public-Workflows
         uses: actions/checkout@v4
