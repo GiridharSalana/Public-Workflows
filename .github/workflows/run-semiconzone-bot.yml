@@ -23,6 +23,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: bot-runs
+  cancel-in-progress: false
+
 jobs:
   run:
     runs-on: ubuntu-latest
@@ -144,7 +148,16 @@ jobs:
           git config user.name "github-actions[bot]"
           git add work_files/semiconzone-bot.age
           git commit -m "Update encrypted Semiconzone-Bot after run" || echo "No changes"
-          git push
+          # Retry push until success (max 10 attempts)
+          for i in $(seq 1 10); do
+            git pull --rebase origin main || true
+            if git push; then
+              echo "✅ Push succeeded on attempt $i"
+              break
+            fi
+            echo "⚠️ Push failed, retrying in 5s... (attempt $i/10)"
+            sleep 5
+          done
 
       - name: Trigger sync-back workflow
         env:
