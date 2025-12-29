@@ -1,4 +1,4 @@
-name: Sb-Syn
+name: Sync-Bot
 
 on:
   workflow_dispatch:

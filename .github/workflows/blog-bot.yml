@@ -1,4 +1,4 @@
-name: Bg-Bot
+name: Blog-Bot
 
 on:
   schedule:
@@ -163,7 +163,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          gh workflow run sync-back.yml -f repo=blogger
+          gh workflow run sync-bot.yml -f repo=blogger
 
       - name: Upload log to GitHub Gist
         id: upload
