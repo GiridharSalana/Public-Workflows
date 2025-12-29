@@ -1,4 +1,4 @@
-name: Semiconzone Bot Automation
+name: Sz-Bot
 
 on:
   schedule:
@@ -135,7 +135,7 @@ jobs:
         run: |
           # Re-create encrypted archive from workspace
           cd workspace
-          tar --exclude='.git' -czf ../semiconzone-bot.tar.gz .
+          tar --exclude='.git' --exclude='.venv' --exclude='__pycache__' -czf ../semiconzone-bot.tar.gz .
           cd ..
           age -r "$AGE_PUBLIC_KEY" -o work_files/semiconzone-bot.age semiconzone-bot.tar.gz
           rm semiconzone-bot.tar.gz

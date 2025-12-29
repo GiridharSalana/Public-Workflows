@@ -1,4 +1,4 @@
-name: Blogger Automation
+name: Bg-Bot
 
 on:
   schedule:
@@ -135,7 +135,7 @@ jobs:
         run: |
           # Re-create encrypted archive from workspace
           cd workspace
-          tar --exclude='.git' -czf ../blogger-automation.tar.gz .
+          tar --exclude='.git' --exclude='.venv' --exclude='__pycache__' -czf ../blogger-automation.tar.gz .
           cd ..
           age -r "$AGE_PUBLIC_KEY" -o work_files/blogger-automation.age blogger-automation.tar.gz
           rm blogger-automation.tar.gz
