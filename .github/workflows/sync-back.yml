@@ -1,4 +1,4 @@
-name: Sync Back to Private Repos
+name: Sb-Syn
 
 on:
   workflow_dispatch:
