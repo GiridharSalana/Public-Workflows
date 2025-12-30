@@ -27,24 +27,24 @@ jobs:
           YOUTUBE_REJECTED_STATE: ${{ vars.YOUTUBE_REJECTED_STATE }}
           TELEGRAM_WEBHOOK_URL: ${{ vars.TELEGRAM_WEBHOOK_URL }}
         run: |
-          cat > .giri-env << 'EOF'
+          cat > .giri-env << EOF
           # Secrets
-          AGE_SECRET_KEY=${{ secrets.AGE_SECRET_KEY }}
-          AGE_PUBLIC_KEY=${{ secrets.AGE_PUBLIC_KEY }}
-          GH_PAT=${{ secrets.GH_PAT }}
-          GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}
-          COHERE_API_KEY=${{ secrets.COHERE_API_KEY }}
-          CEREBRAS_API_KEY=${{ secrets.CEREBRAS_API_KEY }}
-          YOUTUBE_TELEGRAM_BOT_TOKEN=${{ secrets.YOUTUBE_TELEGRAM_BOT_TOKEN }}
-          YOUTUBE_TELEGRAM_CHAT_ID=${{ secrets.YOUTUBE_TELEGRAM_CHAT_ID }}
-          YOUTUBE_NEWSAPI_KEY=${{ secrets.YOUTUBE_NEWSAPI_KEY }}
-          YOUTUBE_PEXELS_API_KEY=${{ secrets.YOUTUBE_PEXELS_API_KEY }}
-          YOUTUBE_PIXABAY_API_KEY=${{ secrets.YOUTUBE_PIXABAY_API_KEY }}
+          AGE_SECRET_KEY=${AGE_SECRET_KEY}
+          AGE_PUBLIC_KEY=${AGE_PUBLIC_KEY}
+          GH_PAT=${GH_PAT}
+          GOOGLE_API_KEY=${GOOGLE_API_KEY}
+          COHERE_API_KEY=${COHERE_API_KEY}
+          CEREBRAS_API_KEY=${CEREBRAS_API_KEY}
+          YOUTUBE_TELEGRAM_BOT_TOKEN=${YOUTUBE_TELEGRAM_BOT_TOKEN}
+          YOUTUBE_TELEGRAM_CHAT_ID=${YOUTUBE_TELEGRAM_CHAT_ID}
+          YOUTUBE_NEWSAPI_KEY=${YOUTUBE_NEWSAPI_KEY}
+          YOUTUBE_PEXELS_API_KEY=${YOUTUBE_PEXELS_API_KEY}
+          YOUTUBE_PIXABAY_API_KEY=${YOUTUBE_PIXABAY_API_KEY}
           # Vars
-          YOUTUBE_LLM_PROVIDER=${{ vars.YOUTUBE_LLM_PROVIDER }}
-          YOUTUBE_USER_APPROVAL=${{ vars.YOUTUBE_USER_APPROVAL }}
-          YOUTUBE_REJECTED_STATE=${{ vars.YOUTUBE_REJECTED_STATE }}
-          TELEGRAM_WEBHOOK_URL=${{ vars.TELEGRAM_WEBHOOK_URL }}
+          YOUTUBE_LLM_PROVIDER=${YOUTUBE_LLM_PROVIDER}
+          YOUTUBE_USER_APPROVAL=${YOUTUBE_USER_APPROVAL}
+          YOUTUBE_REJECTED_STATE=${YOUTUBE_REJECTED_STATE}
+          TELEGRAM_WEBHOOK_URL=${TELEGRAM_WEBHOOK_URL}
           EOF
 
       - name: Upload .giri-env as artifact
@@ -53,4 +53,4 @@ jobs:
           name: giri-env
           path: .giri-env
           retention-days: 1
-
+          include-hidden-files: true
