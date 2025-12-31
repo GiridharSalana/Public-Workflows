@@ -53,7 +53,7 @@ jobs:
           SEMICONZONE_LINKEDIN_UPLOAD: ${{ vars.SEMICONZONE_LINKEDIN_UPLOAD }}
           SEMICONZONE_LLM_PROVIDER: ${{ vars.SEMICONZONE_LLM_PROVIDER }}
         run: |
-          cat > .env << 'ENVEOF'
+          cat > .env << EOF
           # Shared Secrets
           GOOGLE_API_KEY=${GOOGLE_API_KEY}
           COHERE_API_KEY=${COHERE_API_KEY}
@@ -97,7 +97,7 @@ jobs:
           SEMICONZONE_SCHEDULE_INTERVAL=${SEMICONZONE_SCHEDULE_INTERVAL}
           SEMICONZONE_LINKEDIN_UPLOAD=${SEMICONZONE_LINKEDIN_UPLOAD}
           SEMICONZONE_LLM_PROVIDER=${SEMICONZONE_LLM_PROVIDER}
-          ENVEOF
+          EOF
 
       - name: Upload .env as artifact
         uses: actions/upload-artifact@v4
