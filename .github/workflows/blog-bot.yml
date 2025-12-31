@@ -62,13 +62,13 @@ jobs:
 
       - name: Remove Telegram webhook
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.BLOGGER_TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/deleteWebhook"
 
       - name: Send Start Message to Telegram
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.BLOGGER_TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.BLOGGER_TELEGRAM_CHAT_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           MESSAGE="🚀 The Blogger Automation script has started!"
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
@@ -94,17 +94,17 @@ jobs:
           CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
           
           # Shared Telegram (uses same bot for approval of all sites)
-          TELEGRAM_BOT_TOKEN: ${{ secrets.BLOGGER_TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.BLOGGER_TELEGRAM_CHAT_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           
           # LinkedIn (same token for all sites)
-          LINKEDIN_ACCESS_TOKEN: ${{ secrets.BLOGGER_LINKEDIN_ACCESS_TOKEN }}
+          LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
           
           # GitHub token for dispatch links
           BLOGGER_BOT_GITHUB_TOKEN: ${{ secrets.GH_PAT }}
           
           # Shared ImgBB
-          IMGBB_CLIENT_ID: ${{ env.IMGBB_CLIENT_ID || secrets.BLOGGER_IMGBB_CLIENT_ID }}
+          IMGBB_CLIENT_ID: ${{ env.IMGBB_CLIENT_ID || secrets.IMGBB_CLIENT_ID }}
           
           # Config overrides from workflow inputs or vars
           MAX_BLOGS_POSTS: ${{ env.MAX_BLOGS_POSTS || vars.BLOGGER_MAX_BLOGS_POSTS }}
@@ -132,8 +132,8 @@ jobs:
 
       - name: Send Completion Message to Telegram
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.BLOGGER_TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.BLOGGER_TELEGRAM_CHAT_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           MESSAGE="🎉 The Blogger Automation script has completed!"
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
@@ -191,8 +191,8 @@ jobs:
 
       - name: Send to Telegram
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.BLOGGER_TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.BLOGGER_TELEGRAM_CHAT_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           MESSAGE="AutoBlogger Log file: [Logfile](${{ steps.upload.outputs.url }})"
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
@@ -202,7 +202,7 @@ jobs:
 
       - name: Setup Telegram webhook (Polling to Webhook)
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.BLOGGER_TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_WEBHOOK_URL: ${{ vars.TELEGRAM_WEBHOOK_URL }}
         run: curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" -d "url=${TELEGRAM_WEBHOOK_URL}"
 
