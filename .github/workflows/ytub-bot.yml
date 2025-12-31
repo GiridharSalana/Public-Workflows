@@ -64,13 +64,13 @@ jobs:
 
       - name: Remove Telegram webhook
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.YOUTUBE_TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.BLOGGER_TELEGRAM_BOT_TOKEN }}
         run: curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/deleteWebhook"
 
       - name: Send Start Message to Telegram
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.YOUTUBE_TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.YOUTUBE_TELEGRAM_CHAT_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.BLOGGER_TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.BLOGGER_TELEGRAM_CHAT_ID }}
         run: |
           MESSAGE="🚀 The YouTube Automation script has started!"
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
@@ -94,14 +94,13 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
           CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
-          NEWSAPI_KEY: ${{ secrets.YOUTUBE_NEWSAPI_KEY }}
-          PEXELS_API_KEY: ${{ secrets.YOUTUBE_PEXELS_API_KEY }}
-          PIXABAY_API_KEY: ${{ secrets.YOUTUBE_PIXABAY_API_KEY }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           LLM_PROVIDER: ${{ env.LLM_PROVIDER || vars.YOUTUBE_LLM_PROVIDER || 'cohere' }}
           USER_APPROVAL: ${{ env.USER_APPROVAL || vars.YOUTUBE_USER_APPROVAL || 'false' }}
           REJECTED_STATE: ${{ env.REJECTED_STATE || vars.YOUTUBE_REJECTED_STATE || 'delete' }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.YOUTUBE_TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.YOUTUBE_TELEGRAM_CHAT_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.BLOGGER_TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.BLOGGER_TELEGRAM_CHAT_ID }}
           YOUTUBE_BOT_GITHUB_TOKEN: ${{ secrets.GH_PAT }}
           PYTHONUNBUFFERED: 1
         run: |
@@ -154,8 +153,8 @@ jobs:
 
       - name: Send Completion Message to Telegram
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.YOUTUBE_TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.YOUTUBE_TELEGRAM_CHAT_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.BLOGGER_TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.BLOGGER_TELEGRAM_CHAT_ID }}
         run: |
           MESSAGE="🎉 The YouTube Automation script has completed!"
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
