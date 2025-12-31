@@ -88,12 +88,25 @@ jobs:
       - name: Blog-Bot Run
         working-directory: workspace
         env:
+          # Shared LLM API Keys
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
           CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
-          BLOG_ID: ${{ secrets.BLOGGER_BLOG_ID }}
+          
+          # Shared Telegram (uses same bot for approval of all sites)
+          TELEGRAM_BOT_TOKEN: ${{ secrets.BLOGGER_TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.BLOGGER_TELEGRAM_CHAT_ID }}
+          
+          # LinkedIn (same token for all sites)
           LINKEDIN_ACCESS_TOKEN: ${{ secrets.BLOGGER_LINKEDIN_ACCESS_TOKEN }}
+          
+          # GitHub token for dispatch links
+          BLOGGER_BOT_GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+          
+          # Shared ImgBB
           IMGBB_CLIENT_ID: ${{ env.IMGBB_CLIENT_ID || secrets.BLOGGER_IMGBB_CLIENT_ID }}
+          
+          # Config overrides from workflow inputs or vars
           MAX_BLOGS_POSTS: ${{ env.MAX_BLOGS_POSTS || vars.BLOGGER_MAX_BLOGS_POSTS }}
           BLOG_UPLOAD: ${{ env.BLOG_UPLOAD || vars.BLOGGER_BLOG_UPLOAD }}
           USER_APPROVAL: ${{ env.USER_APPROVAL || vars.BLOGGER_USER_APPROVAL }}
@@ -103,9 +116,7 @@ jobs:
           SCHEDULE_INTERVAL: ${{ env.SCHEDULE_INTERVAL || vars.BLOGGER_SCHEDULE_INTERVAL }}
           LINKEDIN_UPLOAD: ${{ env.LINKEDIN_UPLOAD || vars.BLOGGER_LINKEDIN_UPLOAD }}
           LLM_PROVIDER: ${{ env.LLM_PROVIDER || vars.BLOGGER_LLM_PROVIDER }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.BLOGGER_TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.BLOGGER_TELEGRAM_CHAT_ID }}
-          BLOGGER_BOT_GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+          
           PYTHONUNBUFFERED: 1
         run: |
           if [ -n "${{ github.event.inputs.link }}" ]; then
