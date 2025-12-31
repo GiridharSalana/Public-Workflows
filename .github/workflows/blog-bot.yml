@@ -5,16 +5,8 @@ on:
     - cron: '30 10 * * *'   # 4:00 PM IST
   workflow_dispatch:
     inputs:
-      link:
-        description: 'Article URL (for link mode)'
-        required: false
-        type: string
-      text:
-        description: 'Topic/Prompt (for text mode)'
-        required: false
-        type: string
       config:
-        description: 'Configuration JSON (optional)'
+        description: 'Configuration JSON (link, text, site, options)'
         required: false
         type: string
   repository_dispatch:
@@ -119,15 +111,19 @@ jobs:
           
           PYTHONUNBUFFERED: 1
         run: |
-          if [ -n "${{ github.event.inputs.link }}" ]; then
+          ARGS=""
+          # Site filter (from config JSON via env)
+          [ -n "$SITE" ] && ARGS="$ARGS --site $SITE"
+          
+          if [ -n "$LINK" ]; then
             echo "🔗 Running in Link Mode"
-            uv run python main.py --link "${{ github.event.inputs.link }}" | tee logfile.log
-          elif [ -n "${{ github.event.inputs.text }}" ]; then
+            uv run python main.py --link "$LINK" $ARGS | tee logfile.log
+          elif [ -n "$TEXT" ]; then
             echo "✍️ Running in Text Mode"
-            uv run python main.py --text "${{ github.event.inputs.text }}" | tee logfile.log
+            uv run python main.py --text "$TEXT" $ARGS | tee logfile.log
           else
             echo "🔄 Running in Auto Mode"
-            uv run python main.py | tee logfile.log
+            uv run python main.py $ARGS | tee logfile.log
           fi
 
       - name: Send Completion Message to Telegram
