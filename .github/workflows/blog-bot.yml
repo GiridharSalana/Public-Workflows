@@ -52,6 +52,12 @@ jobs:
           curl -LsSf https://astral.sh/uv/install.sh | sh
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
+      - name: Install dependencies and Playwright browsers
+        working-directory: workspace
+        run: |
+          uv sync
+          uv run playwright install chromium --with-deps
+
       - name: Remove Telegram webhook
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -108,6 +114,29 @@ jobs:
           SCHEDULE_INTERVAL: ${{ env.SCHEDULE_INTERVAL || vars.BLOGGER_SCHEDULE_INTERVAL }}
           LINKEDIN_UPLOAD: ${{ env.LINKEDIN_UPLOAD || vars.BLOGGER_LINKEDIN_UPLOAD }}
           LLM_PROVIDER: ${{ env.LLM_PROVIDER || vars.BLOGGER_LLM_PROVIDER }}
+          
+          # Advanced settings from config JSON
+          AUTO_MODE: ${{ env.AUTO_MODE }}
+          LLM_TOPICS_COUNT: ${{ env.LLM_TOPICS_COUNT }}
+          USE_DYNAMIC_CATEGORIES: ${{ env.USE_DYNAMIC_CATEGORIES }}
+          DATABASE_FILE: ${{ env.DATABASE_FILE }}
+          DEFAULT_LABEL: ${{ env.DEFAULT_LABEL }}
+          
+          # Custom messages from config JSON
+          TELEGRAM_APPROVAL_MESSAGE: ${{ env.TELEGRAM_APPROVAL_MESSAGE }}
+          TELEGRAM_APPROVAL_TITLE: ${{ env.TELEGRAM_APPROVAL_TITLE }}
+          PIPELINE_START_MESSAGE: ${{ env.PIPELINE_START_MESSAGE }}
+          
+          # Custom prompts from config JSON
+          BLOG_CONTENT_PROMPT: ${{ env.BLOG_CONTENT_PROMPT }}
+          BLOG_RESEARCH_PROMPT: ${{ env.BLOG_RESEARCH_PROMPT }}
+          LLM_TOPICS_PROMPT: ${{ env.LLM_TOPICS_PROMPT }}
+          
+          # Site-specific overrides (passed through from config JSON)
+          GIRIDHARSALANA_MAX_BLOGS_POSTS: ${{ env.GIRIDHARSALANA_MAX_BLOGS_POSTS }}
+          GIRIDHARSALANA_LLM_TOPICS_COUNT: ${{ env.GIRIDHARSALANA_LLM_TOPICS_COUNT }}
+          SEMICONZONE_MAX_BLOGS_POSTS: ${{ env.SEMICONZONE_MAX_BLOGS_POSTS }}
+          SEMICONZONE_LLM_TOPICS_COUNT: ${{ env.SEMICONZONE_LLM_TOPICS_COUNT }}
           
           PYTHONUNBUFFERED: 1
         run: |
