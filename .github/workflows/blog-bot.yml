@@ -117,7 +117,6 @@ jobs:
           
           # Advanced settings from config JSON
           AUTO_MODE: ${{ env.AUTO_MODE }}
-          LLM_TOPICS_COUNT: ${{ env.LLM_TOPICS_COUNT }}
           USE_DYNAMIC_CATEGORIES: ${{ env.USE_DYNAMIC_CATEGORIES }}
           DATABASE_FILE: ${{ env.DATABASE_FILE }}
           DEFAULT_LABEL: ${{ env.DEFAULT_LABEL }}
@@ -134,9 +133,7 @@ jobs:
           
           # Site-specific overrides (passed through from config JSON)
           GIRIDHARSALANA_MAX_BLOGS_POSTS: ${{ env.GIRIDHARSALANA_MAX_BLOGS_POSTS }}
-          GIRIDHARSALANA_LLM_TOPICS_COUNT: ${{ env.GIRIDHARSALANA_LLM_TOPICS_COUNT }}
           SEMICONZONE_MAX_BLOGS_POSTS: ${{ env.SEMICONZONE_MAX_BLOGS_POSTS }}
-          SEMICONZONE_LLM_TOPICS_COUNT: ${{ env.SEMICONZONE_LLM_TOPICS_COUNT }}
           
           PYTHONUNBUFFERED: 1
         run: |
