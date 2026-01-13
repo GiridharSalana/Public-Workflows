@@ -136,13 +136,13 @@ jobs:
           
           if [ -n "${{ github.event.inputs.link }}" ]; then
             echo "🔗 Running in Link Mode"
-            eval "uv run main.py --link \"${{ github.event.inputs.link }}\" $ARGS" | tee logfile.log
+            eval "uv run main.py --link \"${{ github.event.inputs.link }}\" $ARGS"
           elif [ -n "${{ github.event.inputs.text }}" ]; then
             echo "✍️ Running in Text Mode"
-            eval "uv run main.py --text \"${{ github.event.inputs.text }}\" $ARGS" | tee logfile.log
+            eval "uv run main.py --text \"${{ github.event.inputs.text }}\" $ARGS"
           else
             echo "🔄 Running in Auto Mode"
-            eval "uv run main.py $ARGS" | tee logfile.log
+            eval "uv run main.py $ARGS"
           fi
 
       - name: Send Completion Message to Telegram

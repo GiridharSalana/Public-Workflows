@@ -138,13 +138,13 @@ jobs:
           
           if [ -n "$LINK" ]; then
             echo "🔗 Running in Link Mode"
-            uv run python main.py --link "$LINK" $ARGS | tee logfile.log
+            uv run python main.py --link "$LINK" $ARGS
           elif [ -n "$TEXT" ]; then
             echo "✍️ Running in Text Mode"
-            uv run python main.py --text "$TEXT" $ARGS | tee logfile.log
+            uv run python main.py --text "$TEXT" $ARGS
           else
             echo "🔄 Running in Auto Mode"
-            uv run python main.py $ARGS | tee logfile.log
+            uv run python main.py $ARGS
           fi
 
       - name: Send Completion Message to Telegram
