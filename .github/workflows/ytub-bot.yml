@@ -2,7 +2,7 @@ name: Ytub-Bot
 
 on:
   schedule:
-    - cron: '30 12 * * *'   # 6:00 PM IST
+    - cron: '30 10 * * *'   # 4:00 PM IST
   workflow_dispatch:
     inputs:
       link:
