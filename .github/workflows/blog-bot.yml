@@ -1,8 +1,8 @@
 name: Blog-Bot
 
 on:
-  schedule:
-    - cron: '30 9 * * *'    # 3:00 PM IST
+  # schedule:
+  #   - cron: '30 9 * * *'    # 3:00 PM IST
   workflow_dispatch:
     inputs:
       config:
@@ -14,6 +14,10 @@ on:
 
 permissions:
   contents: write
+
+concurrency:
+  group: automation-bots
+  cancel-in-progress: false
 
 jobs:
   blog-bot:

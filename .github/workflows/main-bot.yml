@@ -1,0 +1,23 @@
+name: Main-Bot
+
+on:
+  schedule:
+    - cron: '30 9 * * *'    # 3:00 PM IST
+  workflow_dispatch:
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Blog-Bot
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: gh workflow run blog-bot.yml --repo ${{ github.repository }}
+
+      - name: Wait for Blog-Bot to claim queue
+        run: sleep 5
+
+      - name: Trigger YouTube-Bot
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: gh workflow run ytub-bot.yml --repo ${{ github.repository }}

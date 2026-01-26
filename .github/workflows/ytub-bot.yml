@@ -1,8 +1,8 @@
 name: Ytub-Bot
 
 on:
-  schedule:
-    - cron: '30 10 * * *'   # 4:00 PM IST
+  # schedule:
+  #   - cron: '30 10 * * *'   # 4:00 PM IST
   workflow_dispatch:
     inputs:
       link:
@@ -22,6 +22,10 @@ on:
 
 permissions:
   contents: write
+
+concurrency:
+  group: automation-bots
+  cancel-in-progress: false
 
 jobs:
   ytub-bot:
